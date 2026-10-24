@@ -1,0 +1,4 @@
+streamlit
+supabase
+argon2-cffi
+pandas
