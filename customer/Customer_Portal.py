@@ -1,6 +1,4 @@
 import streamlit as st
-import base64
-import os
 from datetime import datetime
 from supabase import create_client
 from argon2 import PasswordHasher
@@ -8,29 +6,38 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- GLOBAL STYLING & FONT COLOR ---
+# --- MOBILE STYLING & COMPACT GRID FIXES ---
 st.markdown("""
 <style>
+    /* Apply forest green color across text elements */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #307041 !important;
     }
+
+    /* Enlarge tab text */
     button[data-baseweb="tab"] div p {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
         color: #307041 !important;
     }
+
+    /* Tight mobile column spacing */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 4px !important;
+        }
+        div[data-testid="column"] {
+            flex: 1 !important;
+            min-width: 0 !important;
+            padding: 0 2px !important;
+            text-align: center !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
-
-# Helper function to convert local images to Base64 for reliable HTML rendering
-def get_img_base64(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return ""
-
-disc_img_b64 = get_img_base64("discount.png")
-disc_e_img_b64 = get_img_base64("discountE.png")
 
 # Supabase Connection Setup
 try:
@@ -75,62 +82,36 @@ if st.session_state.cust_logged_in:
     
     tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
-    # --- TAB 1: STAMPS & DISCOUNTS (Pure Mobile-Optimized HTML Grid & Flex) ---
+    # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
-        
-        # Render Discounts Side-by-Side in a Compact Flex Row
-        disc_html = f"""
-        <div style="display: flex; gap: 6px; justify-content: space-between; width: 100%; margin-bottom: 15px;">
-        """
+        gift_cols = st.columns(2)
         for g in range(2):
-            if g < discounts:
-                exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                disc_html += f"""
-                <div style="flex: 1; background: #f2f8f3; border: 1px solid #307041; border-radius: 8px; padding: 8px 4px; text-align: center;">
-                    <img src="data:image/png;base64,{disc_img_b64}" width="32" style="display: block; margin: 0 auto 4px auto;"/>
-                    <span style="font-size: 10px; color: #307041; font-weight: 700; line-height: 1.2; display: block;">Discount #{g+1}</span>
-                    <span style="font-size: 9px; color: #307041; opacity: 0.8;">Exp: {exp_str}</span>
-                </div>
-                """
-            else:
-                disc_html += f"""
-                <div style="flex: 1; background: #fafafa; border: 1px dashed #b5c4b8; border-radius: 8px; padding: 8px 4px; text-align: center;">
-                    <img src="data:image/png;base64,{disc_e_img_b64}" width="32" style="display: block; margin: 0 auto 4px auto; opacity: 0.6;"/>
-                    <span style="font-size: 10px; color: #78947c; font-weight: 700; line-height: 1.2; display: block;">Discount #{g+1}</span>
-                    <span style="font-size: 9px; color: #78947c;">Locked</span>
-                </div>
-                """
-        disc_html += "</div>"
-        st.markdown(disc_html, unsafe_allow_html=True)
+            with gift_cols[g]:
+                if g < discounts:
+                    exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
+                    st.image("discount.png", width=35)
+                    st.caption(f"Discount #{g+1} ({exp_str})")
+                else:
+                    st.image("discountE.png", width=35)
+                    st.caption(f"Discount #{g+1} (Locked)")
 
         st.divider()
 
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
-        # Render 3x3 Grid using Pure CSS Grid (Zero Overflow, Tight Mobile Fit)
-        grid_html = """
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; margin-bottom: 10px;">
-        """
-        for i in range(9):
-            if i < current_stamps:
-                emoji = book_emojis[i]
-                bg_style = "background: #f2f8f3; border: 1px solid #307041;"
-                text_color = "#307041"
-            else:
-                emoji = "⚪"
-                bg_style = "background: #fafafa; border: 1px solid #d5ddd7;"
-                text_color = "#78947c"
-            
-            grid_html += f"""
-            <div style="{bg_style} border-radius: 8px; padding: 8px 2px; text-align: center;">
-                <div style="font-size: 20px; line-height: 1.1;">{emoji}</div>
-                <div style="font-size: 10px; color: {text_color}; margin-top: 4px; font-weight: 600;">Book {i+1}</div>
-            </div>
-            """
-        grid_html += "</div>"
-        st.markdown(grid_html, unsafe_allow_html=True)
+        for row in range(3):
+            cols = st.columns(3)
+            for col in range(3):
+                idx = row * 3 + col
+                with cols[col]:
+                    if idx < current_stamps:
+                        st.markdown(f"### {book_emojis[idx]}")
+                        st.caption(f"Book {idx+1}")
+                    else:
+                        st.markdown("### ⚪")
+                        st.caption(f"Book {idx+1}")
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
