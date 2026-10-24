@@ -6,16 +6,11 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- GLOBAL STYLING & MOBILE FIXES ---
+# --- STYLING & MOBILE FIXES (Fixed font sizes, applied #307041 color) ---
 st.markdown("""
 <style>
-    /* Force text color across the entire app */
-    html, body, [class*="css"] {
-        color: #307041 !important;
-    }
-    
-    /* Ensure markdown headers and captions inherit the color */
-    h1, h2, h3, h4, h5, h6, p, span, label, div {
+    /* Apply forest green color to text elements without shrinking font sizes */
+    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #307041 !important;
     }
 
@@ -251,7 +246,8 @@ with tab_login:
 
 with tab_register:
     st.subheader("Register a New Loyalty Card")
-    with st.form("cust_reg_form"):
+    # clear_on_submit=True automatically clears the form fields upon successful submission
+    with st.form("cust_reg_form", clear_on_submit=True):
         reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
         reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
         reg_password = st.text_input("Create Password * (Required)", type="password", placeholder="Choose a secure password")
@@ -288,6 +284,5 @@ with tab_register:
                         
                         supabase.table("loyalty_cards").insert(new_cust_payload).execute()
                         st.toast("🎉 Account created successfully! Please log in.", icon="✅")
-                        st.rerun()
                 except Exception as e:
                     st.error(f"Registration error: {e}")
