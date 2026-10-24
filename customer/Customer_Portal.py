@@ -6,7 +6,7 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- MOBILE STYLING & RESPONSIVE GRID FIXES ---
+# --- MOBILE STYLING & TIGHT GRID FIXES ---
 st.markdown("""
 <style>
     /* Apply forest green color across text elements */
@@ -21,23 +21,23 @@ st.markdown("""
         color: #307041 !important;
     }
 
-    /* Force columns to stay side-by-side on mobile screens for discounts & stamps */
+    /* Eliminate huge column gaps on mobile phones */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 4px !important;
+            gap: 2px !important; /* Extremely tight gap */
         }
         div[data-testid="column"] {
             flex: 1 !important;
             width: auto !important;
             min-width: 0 !important;
-            padding: 0 2px !important;
+            padding: 0 1px !important; /* Zero out padding */
         }
-        /* Make discount and stamp captions compact on mobile */
+        /* Compact text on mobile */
         div[data-testid="column"] p, div[data-testid="column"] caption, div[data-testid="column"] div {
-            font-size: 11px !important;
+            font-size: 10px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
@@ -91,7 +91,7 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
-        # Earned Discounts in ONE row (side-by-side, compact on mobile)
+        # Earned Discounts in ONE row (tight side-by-side)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         gift_cols = st.columns(2)
         for g in range(2):
@@ -99,14 +99,14 @@ if st.session_state.cust_logged_in:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
                     st.image("discount.png", width=35)
-                    st.caption(f"Discount #{g+1} (Ready! {exp_str})")
+                    st.caption(f"Discount #{g+1} ({exp_str})")
                 else:
                     st.image("discountE.png", width=35)
                     st.caption(f"Discount #{g+1} (Locked)")
 
         st.divider()
 
-        # Book Purchase Progress in a responsive 3x3 Grid
+        # Book Purchase Progress in a tight 3x3 Grid
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
@@ -294,9 +294,3 @@ with tab_register:
                             "created_at": now_str,
                             "last_visit": now_str,
                             "updated_at": now_str
-                        }
-                        
-                        supabase.table("loyalty_cards").insert(new_cust_payload).execute()
-                        st.toast("🎉 Account created successfully! Please log in.", icon="✅")
-                except Exception as e:
-                    st.error(f"Error registering account: {e}")
