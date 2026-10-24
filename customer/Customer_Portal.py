@@ -159,11 +159,25 @@ if st.session_state.cust_logged_in:
                     st.error(f"Error updating profile: {update_err}")
 
     st.divider()
-    if st.button("🚪 Log Out", use_container_width=True):
-        st.session_state.cust_logged_in = False
-        st.session_state.cust_mobile = ""
-        st.session_state.cust_data = None
-        st.rerun()
+    
+    # --- REFRESH & LOG OUT BUTTONS ---
+    with st.container(horizontal=True, wrap=False):
+        if st.button("🔄 Refresh Stamps", use_container_width=True):
+            try:
+                # Re-fetch latest data from Supabase without logging out
+                res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                if res_refresh.data:
+                    st.session_state.cust_data = res_refresh.data[0]
+                    st.toast("🔄 Stamps refreshed successfully!", icon="✨")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error refreshing: {e}")
+                
+        if st.button("🚪 Log Out", use_container_width=True):
+            st.session_state.cust_logged_in = False
+            st.session_state.cust_mobile = ""
+            st.session_state.cust_data = None
+            st.rerun()
 
     st.stop()
 
