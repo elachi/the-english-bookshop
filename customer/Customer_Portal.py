@@ -6,11 +6,18 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- STYLING & MOBILE FIXES (Fixed font sizes, applied #307041 color) ---
+# --- STYLING & MOBILE FIXES ---
 st.markdown("""
 <style>
-    /* Apply forest green color to text elements without shrinking font sizes */
+    /* Apply forest green color across text elements */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+        color: #307041 !important;
+    }
+
+    /* Enlarge and style Tab Text explicitly */
+    button[data-baseweb="tab"] div p {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
         color: #307041 !important;
     }
 
@@ -246,7 +253,6 @@ with tab_login:
 
 with tab_register:
     st.subheader("Register a New Loyalty Card")
-    # clear_on_submit=True automatically clears the form fields upon successful submission
     with st.form("cust_reg_form", clear_on_submit=True):
         reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
         reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
