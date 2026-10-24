@@ -83,6 +83,50 @@ if st.session_state.cust_logged_in:
     
     tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
+
+
+
+
+
+    # --- TAB 1: STAMPS & DISCOUNTS ---
+    with tab_stamps:
+        st.markdown("### 🏷️ Earned Discounts (Up to 2)")
+        
+        # Native side-by-side columns for the two discounts with compact spacing
+        d_col1, d_col2, spacer = st.columns(1)
+
+        with d_col1:
+            if 0 < discounts:
+                exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
+                st.image("discount.png", width=38)
+                st.caption(f"Discount #1\nExp: {exp_str}")
+            else:
+                st.image("discountE.png", width=38)
+                st.caption("Discount #1\nLocked")
+
+        with d_col2:
+            if 1 < discounts:
+                exp_str = discount_expiries[1][:10] if len(discount_expiries) > 1 else "N/A"
+                st.image("discount.png", width=38)
+                st.caption(f"Discount #2\nExp: {exp_str}")
+            else:
+                st.image("discountE.png", width=38)
+                st.caption("Discount #2\nLocked")
+
+        st.divider()
+
+
+
+
+
+
+
+
+
+
+
+
+
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
