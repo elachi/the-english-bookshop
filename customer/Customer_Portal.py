@@ -100,7 +100,7 @@ if st.session_state.cust_logged_in:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         
         # Native side-by-side columns for the two discounts with compact spacing
-        d_col1, d_col2, spacer = st.columns([1, 1])
+        d_col1, d_col2, spacer = st.columns([1, 1, 2])
 
         with d_col1:
             if 0 < discounts:
