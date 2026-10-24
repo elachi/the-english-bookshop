@@ -99,46 +99,45 @@ if st.session_state.cust_logged_in:
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
 
-        left, right, spacer = st.columns([1,1])
-        with 1:
-            # Native side-by-side columns for the two discounts with compact spacing
-            d_col1, d_col2, spacer = st.columns([1, 1, 2])
+        
+        # Native side-by-side columns for the two discounts with compact spacing
+        d_col1, d_col2, spacer = st.columns([1, 1, 2])
 
-            with d_col1:
-                if 0 < discounts:
-                    exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
-                    st.image("discount.png", width=38)
-                    st.caption(f"Discount #1\nExp: {exp_str}")
-                else:
-                    st.image("discountE.png", width=38)
-                    st.caption("Discount #1\nLocked")
+        with d_col1:
+            if 0 < discounts:
+                exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
+                st.image("discount.png", width=38)
+                st.caption(f"Discount #1\nExp: {exp_str}")
+            else:
+                st.image("discountE.png", width=38)
+                st.caption("Discount #1\nLocked")
 
-            with d_col2:
-                if 1 < discounts:
-                    exp_str = discount_expiries[1][:10] if len(discount_expiries) > 1 else "N/A"
-                    st.image("discount.png", width=38)
-                    st.caption(f"Discount #2\nExp: {exp_str}")
-                else:
-                    st.image("discountE.png", width=38)
-                    st.caption("Discount #2\nLocked")
+        with d_col2:
+            if 1 < discounts:
+                exp_str = discount_expiries[1][:10] if len(discount_expiries) > 1 else "N/A"
+                st.image("discount.png", width=38)
+                st.caption(f"Discount #2\nExp: {exp_str}")
+            else:
+                st.image("discountE.png", width=38)
+                st.caption("Discount #2\nLocked")
 
-       # st.divider()
-        with 2:
-            # Book Purchase Progress in a 3x3 Grid
-            st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
-            book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
-            
-            for row in range(3):
-                cols = st.columns(3)
-                for col in range(3):
-                    idx = row * 3 + col
-                    with cols[col]:
-                        if idx < current_stamps:
-                            st.markdown(f"### {book_emojis[idx]}")
-                            st.caption(f"Book {idx+1}")
-                        else:
-                            st.markdown("### ⚪")
-                            st.caption(f"Book {idx+1}")
+        st.divider()
+
+        # Book Purchase Progress in a 3x3 Grid
+        st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
+        book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
+        
+        for row in range(3):
+            cols = st.columns(3)
+            for col in range(3):
+                idx = row * 3 + col
+                with cols[col]:
+                    if idx < current_stamps:
+                        st.markdown(f"### {book_emojis[idx]}")
+                        st.caption(f"Book {idx+1}")
+                    else:
+                        st.markdown("### ⚪")
+                        st.caption(f"Book {idx+1}")
 
 
 
