@@ -71,7 +71,7 @@ if st.sidebar.button("🚪 Log Out", use_container_width=True):
 
 # --- MAIN SCANNER VIEW ---
 
-st.image("Logo_EnglishBookshop_Logo.png", width=150)
+st.image("Logo_EnglishBookshop_logo.png", width=150)
 
 search_input = st.text_input(
     "Enter Customer Mobile Number or Email:", 
