@@ -2,7 +2,8 @@ import streamlit as st
 from datetime import datetime, timedelta
 from supabase import create_client
 
-st.set_page_config(page_title="Bookstore CRM - Scanner", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Bookstore CRM - Scanner", page_icon="📚")
+#, layout="wide"
 
 # Supabase Connection Setup
 try:
