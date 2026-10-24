@@ -1,10 +1,11 @@
 import streamlit as st
+import time
 from datetime import datetime
 from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
+st.set_page_config(page_title="My Loyalty Card", page_icon="📚", layout="centered")
 
 # Supabase Connection Setup
 try:
@@ -34,16 +35,25 @@ if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 if "cust_success_msg" not in st.session_state:
     st.session_state.cust_success_msg = ""
+if "msg_timestamp" not in st.session_state:
+    st.session_state.msg_timestamp = 0.0
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
 st.title("📚 My Bookstore Loyalty Card")
 
-# --- DISPLAY PERSISTENT SUCCESS MESSAGE IF ANY ---
+# --- AUTO-DISAPPEARING SUCCESS MESSAGE (5 SECONDS) ---
 if st.session_state.cust_success_msg:
     st.success(st.session_state.cust_success_msg)
-    st.session_state.cust_success_msg = ""
+    if time.time() - st.session_state.msg_timestamp > 5.0:
+        st.session_state.cust_success_msg = ""
+        st.session_state.msg_timestamp = 0.0
+        st.rerun()
 
-# --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
+def trigger_success(msg):
+    st.session_state.cust_success_msg = msg
+    st.session_state.msg_timestamp = time.time()
+
+# --- 1. LOGGED-IN CUSTOMER DASHBOARD (TWO TABS) ---
 if st.session_state.cust_logged_in:
     data = st.session_state.cust_data
     customer_name = data.get("name", "Valued Customer")
@@ -52,45 +62,54 @@ if st.session_state.cust_logged_in:
     discounts = data.get("free_cups", 0)
     discount_expiries = data.get("free_cup_expiries", []) or []
 
-    st.success(f"Welcome back, **{customer_name}**!")
+    st.markdown(f"### Welcome back, **{customer_name}**!")
     
-    # --- EARNED DISCOUNTS BANK ---
-    st.markdown("### 🏷️ Your Earned Discounts (Up to 2)")
-    gift_cols = st.columns(2)
-    for g in range(2):
-        with gift_cols[g]:
-            if g < discounts:
-                exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                st.image("discount.png", width=40)
-                st.caption(f"Discount #{g+1} (Ready! Exp: {exp_str})")
-            else:
-                st.image("discountE.png", width=40)
-                st.caption(f"Discount #{g+1} (Locked)")
+    # Create the two requested tabs
+    tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
-    st.divider()
+    # --- TAB 1: STAMPS & DISCOUNTS ---
+    with tab_stamps:
+        # Earned Discounts in ONE row (side-by-side for mobile)
+        st.markdown("### 🏷️ Earned Discounts (Up to 2)")
+        gift_cols = st.columns(2)
+        for g in range(2):
+            with gift_cols[g]:
+                if g < discounts:
+                    exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
+                    st.image("discount.png", width=40)
+                    st.caption(f"Discount #{g+1} (Ready! Exp: {exp_str})")
+                else:
+                    st.image("discountE.png", width=40)
+                    st.caption(f"Discount #{g+1} (Locked)")
 
-    # --- BOOK STAMP PROGRESS (9 Books) ---
-    st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
-    book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
-    cols = st.columns(3) + st.columns(3) + st.columns(3)
-    for i in range(9):
-        with cols[i]:
-            if i < current_stamps:
-                st.markdown(f"### {book_emojis[i]}")
-                st.caption(f"Book {i+1} (Collected)")
-            else:
-                st.markdown("### ⚪")
-                st.caption(f"Book {i+1} (Empty)")
+        st.divider()
 
-    st.divider()
+        # Book Stamp Progress in a 3x3 Grid
+        st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
+        book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
+        
+        for row in range(3):
+            cols = st.columns(3)
+            for col in range(3):
+                idx = row * 3 + col
+                with cols[col]:
+                    if idx < current_stamps:
+                        st.markdown(f"### {book_emojis[idx]}")
+                        st.caption(f"Book {idx+1} (Collected)")
+                    else:
+                        st.markdown("### ⚪")
+                        st.caption(f"Book {idx+1} (Empty)")
 
-    # --- EDIT PROFILE SECTION (Name, Password with Old Password Check, Ads Checkbox) ---
-    with st.expander("⚙️ Edit My Profile (Name, Password & Ad Preferences)"):
+    # --- TAB 2: PROFILE EDITOR ---
+    with tab_profile:
+        st.markdown("### 🛠️ Edit Your Profile")
         with st.form("edit_profile_form"):
-            new_name_input = st.text_input("Name", value=data.get("name", ""))
+            e_name = st.text_input("Name", value=data.get("name", ""))
+            e_mobile = st.text_input("Mobile Number (Primary ID)", value=data.get("mobile_number", ""))
+            e_email = st.text_input("Email", value=data.get("email", "") or "")
             
             st.markdown("---")
-            st.markdown("🔒 **Change Password** (Requires current password)")
+            st.markdown("🔒 **Change Password** (Fill out only if changing password)")
             old_pwd_input = st.text_input("Current Password", type="password", placeholder="Enter current password")
             new_pwd_input = st.text_input("New Password", type="password", placeholder="Enter new password")
             
@@ -102,7 +121,9 @@ if st.session_state.cust_logged_in:
             if save_profile_btn:
                 try:
                     update_payload = {
-                        "name": new_name_input.strip() if new_name_input else "Valued Customer",
+                        "name": e_name.strip() if e_name else "Valued Customer",
+                        "mobile_number": e_mobile.strip(),
+                        "email": e_email.strip().lower() if e_email else None,
                         "receive_ads": receive_ads_input,
                         "updated_at": datetime.utcnow().isoformat()
                     }
@@ -118,18 +139,20 @@ if st.session_state.cust_logged_in:
                                 
                                 supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
                                 
-                                res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                                res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", e_mobile.strip()).execute()
                                 st.session_state.cust_data = res_refresh.data[0]
-                                st.session_state.cust_success_msg = "✅ Profile and password updated successfully!"
+                                st.session_state.cust_mobile = e_mobile.strip()
+                                trigger_success("✅ Profile and password updated successfully!")
                                 st.rerun()
                             except VerifyMismatchError:
                                 st.error("❌ Incorrect current password.")
                     else:
                         supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
                         
-                        res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                        res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", e_mobile.strip()).execute()
                         st.session_state.cust_data = res_refresh.data[0]
-                        st.session_state.cust_success_msg = "✅ Profile updated successfully!"
+                        st.session_state.cust_mobile = e_mobile.strip()
+                        trigger_success("✅ Profile updated successfully!")
                         st.rerun()
                         
                 except Exception as update_err:
@@ -169,7 +192,7 @@ if st.session_state.cust_first_login_setup:
                     st.session_state.cust_data = res.data[0]
                     st.session_state.cust_logged_in = True
                     st.session_state.cust_first_login_setup = False
-                    st.session_state.cust_success_msg = "✅ Password saved successfully!"
+                    trigger_success("✅ Password saved successfully!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error setting password: {e}")
@@ -207,7 +230,7 @@ with tab_login:
                                 st.session_state.cust_logged_in = True
                                 st.session_state.cust_data = cust
                                 st.session_state.cust_mobile = cust["mobile_number"]
-                                st.session_state.cust_success_msg = "✅ Login successful!"
+                                trigger_success("✅ Login successful!")
                                 st.rerun()
                             except VerifyMismatchError:
                                 st.error("❌ Incorrect password.")
@@ -252,7 +275,7 @@ with tab_register:
                         }
                         
                         supabase.table("loyalty_cards").insert(new_cust_payload).execute()
-                        st.session_state.cust_success_msg = "🎉 Account created successfully! Please switch to the 'Customer Login' tab to log in."
+                        trigger_success("🎉 Account created successfully! Please switch to the 'Customer Login' tab to log in.")
                         st.rerun()
                 except Exception as e:
                     st.error(f"Registration error: {e}")
