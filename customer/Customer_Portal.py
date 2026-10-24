@@ -20,23 +20,6 @@ st.markdown("""
         font-weight: 600 !important;
         color: #307041 !important;
     }
-
-    /* Tight mobile column spacing and alignment */
-    @media (max-width: 768px) {
-        div[data-testid="stHorizontalBlock"] {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 8px !important;
-            width: 100% !important;
-        }
-        div[data-testid="column"] {
-            flex: 1 !important;
-            min-width: 0 !important;
-            padding: 0 2px !important;
-            text-align: center !important;
-        }
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -83,48 +66,39 @@ if st.session_state.cust_logged_in:
     
     tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
-    # --- TAB 1: STAMPS & DISCOUNTS ---
+    # --- TAB 1: STAMPS & DISCOUNTS (Using horizontal containers) ---
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         
-        # Native side-by-side columns for the two discounts with compact spacing
-        d_col1, d_col2, spacer = st.columns([1, 1, 2])
-
-        with d_col1:
-            if 0 < discounts:
-                exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
-                st.image("discount.png", width=38)
-                st.caption(f"Discount #1\nExp: {exp_str}")
-            else:
-                st.image("discountE.png", width=38)
-                st.caption("Discount #1\nLocked")
-
-        with d_col2:
-            if 1 < discounts:
-                exp_str = discount_expiries[1][:10] if len(discount_expiries) > 1 else "N/A"
-                st.image("discount.png", width=38)
-                st.caption(f"Discount #2\nExp: {exp_str}")
-            else:
-                st.image("discountE.png", width=38)
-                st.caption("Discount #2\nLocked")
+        # Horizontal container for the two discounts (side-by-side, no wrap)
+        with st.container(horizontal=True, wrap=False):
+            for g in range(2):
+                with st.container():
+                    if g < discounts:
+                        exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
+                        st.image("discount.png", width=36)
+                        st.caption(f"Discount #{g+1}\nExp: {exp_str}")
+                    else:
+                        st.image("discountE.png", width=36)
+                        st.caption(f"Discount #{g+1}\nLocked")
 
         st.divider()
 
-        # Book Purchase Progress in a 3x3 Grid
+        # Book Purchase Progress (3 rows of 3 stamps using horizontal containers)
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
         for row in range(3):
-            cols = st.columns(3)
-            for col in range(3):
-                idx = row * 3 + col
-                with cols[col]:
-                    if idx < current_stamps:
-                        st.markdown(f"### {book_emojis[idx]}")
-                        st.caption(f"Book {idx+1}")
-                    else:
-                        st.markdown("### ⚪")
-                        st.caption(f"Book {idx+1}")
+            with st.container(horizontal=True, wrap=False):
+                for col in range(3):
+                    idx = row * 3 + col
+                    with st.container():
+                        if idx < current_stamps:
+                            st.markdown(f"### {book_emojis[idx]}")
+                            st.caption(f"Book {idx+1}")
+                        else:
+                            st.markdown("### ⚪")
+                            st.caption(f"Book {idx+1}")
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
