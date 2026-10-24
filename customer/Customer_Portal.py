@@ -99,9 +99,9 @@ if st.session_state.cust_logged_in:
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
 
-        thumbnail_columns = st.columns(3, gap="xsmall")
+    
         # Native side-by-side columns for the two discounts with compact spacing
-        #d_col1, d_col2, spacer = st.columns([1, 1, 2])
+        d_col1, d_col2, spacer = st.columns([1, 1, 2], gap="xsmall"))
 
         with d_col1:
             if 0 < discounts:
