@@ -1,6 +1,4 @@
 import streamlit as st
-import base64
-import os
 from datetime import datetime
 from supabase import create_client
 from argon2 import PasswordHasher
@@ -11,26 +9,36 @@ st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", lay
 # --- MOBILE STYLING & FONT COLOR ---
 st.markdown("""
 <style>
+    /* Apply forest green color across all text elements */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #307041 !important;
     }
+
+    /* Enlarge tab text */
     button[data-baseweb="tab"] div p {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
         color: #307041 !important;
     }
+
+    /* Tight mobile column spacing and alignment */
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 8px !important;
+            width: 100% !important;
+        }
+        div[data-testid="column"] {
+            flex: 1 !important;
+            min-width: 0 !important;
+            padding: 0 2px !important;
+            text-align: center !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
-
-# Helper function to convert local images to Base64 for inline rendering
-def get_img_base64(file_path):
-    if os.path.exists(file_path):
-        with open(file_path, "rb") as f:
-            return base64.b64encode(f.read()).decode()
-    return ""
-
-disc_img_b64 = get_img_base64("discount.png")
-disc_e_img_b64 = get_img_base64("discountE.png")
 
 # Supabase Connection Setup
 try:
@@ -79,29 +87,26 @@ if st.session_state.cust_logged_in:
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         
-        # Render PNG discounts side-by-side with precise spacing
-        disc_row_html = '<div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">'
-        
-        for g in range(2):
-            if g < discounts:
-                exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                disc_row_html += f"""
-                <div style="text-align: center; background: #f2f8f3; border: 1px solid #307041; border-radius: 8px; padding: 6px 10px;">
-                    <img src="data:image/png;base64,{disc_img_b64}" width="36" style="display: block; margin: 0 auto 2px auto;"/>
-                    <span style="font-size: 10px; font-weight: 700; display: block;">Discount #{g+1}</span>
-                    <span style="font-size: 9px; opacity: 0.8;">Exp: {exp_str}</span>
-                </div>
-                """
+        # Native side-by-side columns for the two discounts with compact spacing
+        d_col1, d_col2, spacer = st.columns([1, 1, 2])
+
+        with d_col1:
+            if 0 < discounts:
+                exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
+                st.image("discount.png", width=38)
+                st.caption(f"Discount #1\nExp: {exp_str}")
             else:
-                disc_row_html += f"""
-                <div style="text-align: center; background: #fafafa; border: 1px dashed #b5c4b8; border-radius: 8px; padding: 6px 10px;">
-                    <img src="data:image/png;base64,{disc_e_img_b64}" width="36" style="display: block; margin: 0 auto 2px auto; opacity: 0.6;"/>
-                    <span style="font-size: 10px; font-weight: 700; display: block; color: #78947c;">Discount #{g+1}</span>
-                    <span style="font-size: 9px; color: #78947c;">Locked</span>
-                </div>
-                """
-        disc_row_html += '</div>'
-        st.markdown(disc_row_html, unsafe_allow_html=True)
+                st.image("discountE.png", width=38)
+                st.caption("Discount #1\nLocked")
+
+        with d_col2:
+            if 1 < discounts:
+                exp_str = discount_expiries[1][:10] if len(discount_expiries) > 1 else "N/A"
+                st.image("discount.png", width=38)
+                st.caption(f"Discount #2\nExp: {exp_str}")
+            else:
+                st.image("discountE.png", width=38)
+                st.caption("Discount #2\nLocked")
 
         st.divider()
 
