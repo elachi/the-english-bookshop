@@ -6,7 +6,7 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- MOBILE STYLING & COMPACT GRID FIXES ---
+# --- MOBILE STYLING & ULTRA-TIGHT GRID FIXES ---
 st.markdown("""
 <style>
     /* Apply forest green color across text elements */
@@ -21,28 +21,33 @@ st.markdown("""
         color: #307041 !important;
     }
 
-    /* Prevent horizontal scrolling and tighten mobile grid spacing */
+    /* Ultra-tight mobile layout spacing */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             width: 100% !important;
-            gap: 4px !important;
+            gap: 1px !important; /* Minimal gap */
+            margin: 0 !important;
+            padding: 0 !important;
         }
         div[data-testid="column"] {
             flex: 1 !important;
             min-width: 0 !important;
             max-width: none !important;
-            padding: 0 2px !important;
+            padding: 0 1px !important; /* Minimal column padding */
+            margin: 0 !important;
             text-align: center !important;
         }
-        /* Make captions compact so they don't break layout */
+        /* Keep text compact and prevent wrapping overflow */
         div[data-testid="column"] p, div[data-testid="column"] caption {
-            font-size: 10px !important;
+            font-size: 9px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
     }
 </style>
@@ -93,7 +98,7 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
-        # Earned Discounts in ONE row (side-by-side, compact fit)
+        # Earned Discounts in ONE row (ultra-tight side-by-side)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         gift_cols = st.columns(2)
         for g in range(2):
