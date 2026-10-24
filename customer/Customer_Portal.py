@@ -6,9 +6,20 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- MOBILE CSS FIX (Forces stamps & discounts to stay side-by-side on phones) ---
+# --- GLOBAL STYLING & MOBILE FIXES ---
 st.markdown("""
 <style>
+    /* Force text color across the entire app */
+    html, body, [class*="css"] {
+        color: #307041 !important;
+    }
+    
+    /* Ensure markdown headers and captions inherit the color */
+    h1, h2, h3, h4, h5, h6, p, span, label, div {
+        color: #307041 !important;
+    }
+
+    /* Force columns to stay side-by-side on mobile screens */
     @media (max-width: 768px) {
         .horizontal-mobile [data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
@@ -18,7 +29,6 @@ st.markdown("""
             flex: 1 !important;
             width: auto !important;
             min-width: 0 !important;
-            font-size: 12px !important;
         }
     }
 </style>
@@ -69,7 +79,6 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
-        # Earned Discounts in ONE row (side-by-side on mobile)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         st.markdown('<div class="horizontal-mobile">', unsafe_allow_html=True)
         gift_cols = st.columns(2)
@@ -86,7 +95,6 @@ if st.session_state.cust_logged_in:
 
         st.divider()
 
-        # Book Stamp Progress in a 3x3 Grid (side-by-side per row on mobile)
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
