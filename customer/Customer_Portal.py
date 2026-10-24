@@ -83,22 +83,9 @@ if st.session_state.cust_logged_in:
     
     tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
-
-
-
-
-
-
-
-
-
-
-
-
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
-
         
         # Native side-by-side columns for the two discounts with compact spacing
         d_col1, d_col2, spacer = st.columns([1, 1, 2])
@@ -138,8 +125,6 @@ if st.session_state.cust_logged_in:
                     else:
                         st.markdown("### ⚪")
                         st.caption(f"Book {idx+1}")
-
-
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
