@@ -38,7 +38,7 @@ def clear_scanner():
 
 # --- AUTHENTICATION GATE ---
 if not st.session_state.logged_in:
-    st.image("icons/Logo_EnglishBookshop_Logo.png", width=150)
+    st.image("Logo_EnglishBookshop_Logo.png", width=150)
 
     st.title("📚 The English Bookstore stamp programme")
     with st.form("login_form"):
@@ -71,7 +71,7 @@ if st.sidebar.button("🚪 Log Out", use_container_width=True):
 
 # --- MAIN SCANNER VIEW ---
 
-st.image("icons/Logo_EnglishBookshop_Logo.png", width=150)
+st.image("Logo_EnglishBookshop_Logo.png", width=150)
 
 search_input = st.text_input(
     "Enter Customer Mobile Number or Email:", 
@@ -117,10 +117,10 @@ if search_input:
             with gift_cols[g]:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                    st.image("icons/discount.png", width=35)
+                    st.image("discount.png", width=35)
                     st.caption(f"Discount #{g+1} (Ready! Exp: {exp_str})")
                 else:
-                    st.image("icons/discountE.png", width=35)
+                    st.image("discountE.png", width=35)
                     st.caption(f"Discount #{g+1} (Locked)")
 
         st.divider()
