@@ -4,7 +4,7 @@ from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-st.set_page_config(page_title="Customer Loyalty Portal", page_icon="📚", layout="centered")
+st.set_page_config(page_title="My Customer Card", page_icon="📚", layout="centered")
 
 # Supabase Connection Setup
 try:
@@ -23,7 +23,7 @@ def init_supabase():
 supabase = init_supabase()
 ph = PasswordHasher()
 
-# Session State Initialization for Customer
+# Session State Initialization
 if "cust_logged_in" not in st.session_state:
     st.session_state.cust_logged_in = False
 if "cust_mobile" not in st.session_state:
@@ -34,9 +34,9 @@ if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
-st.title("📚 Customer Loyalty Portal")
+st.title("📚 My Bookstore Loyalty Card")
 
-# --- LOGGED-IN CUSTOMER DASHBOARD ---
+# --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
 if st.session_state.cust_logged_in:
     data = st.session_state.cust_data
     customer_name = data.get("name", "Valued Customer")
@@ -48,7 +48,7 @@ if st.session_state.cust_logged_in:
     st.success(f"Welcome back, **{customer_name}**!")
     
     # --- EARNED DISCOUNTS BANK ---
-    st.markdown("### 🏷️ Your Earned Bookstore Discounts (Up to 2)")
+    st.markdown("### 🏷️ Your Earned Discounts (Up to 2)")
     gift_cols = st.columns(2)
     for g in range(2):
         with gift_cols[g]:
@@ -76,6 +76,37 @@ if st.session_state.cust_logged_in:
                 st.caption(f"Book {i+1} (Empty)")
 
     st.divider()
+
+    # --- EDIT PROFILE SECTION (Name, Password, Ads Checkbox) ---
+    with st.expander("⚙️ Edit My Profile (Name, Password & Ad Preferences)"):
+        with st.form("edit_profile_form"):
+            new_name_input = st.text_input("Name", value=data.get("name", ""))
+            new_pwd_input = st.text_input("New Password (leave blank to keep current)", type="password")
+            receive_ads_input = st.checkbox("Receive promotional emails & special offer ads", value=bool(data.get("receive_ads", True)))
+            
+            save_profile_btn = st.form_submit_button("Save Profile Changes", use_container_width=True)
+            
+            if save_profile_btn:
+                try:
+                    update_payload = {
+                        "name": new_name_input.strip() if new_name_input else "Valued Customer",
+                        "receive_ads": receive_ads_input,
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                    if new_pwd_input.strip():
+                        update_payload["password_hash"] = ph.hash(new_pwd_input.strip())
+                    
+                    supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
+                    
+                    # Refresh local session data
+                    res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                    st.session_state.cust_data = res_refresh.data[0]
+                    st.success("Profile updated successfully!")
+                    st.rerun()
+                except Exception as update_err:
+                    st.error(f"Error updating profile: {update_err}")
+
+    st.divider()
     if st.button("🚪 Log Out", use_container_width=True):
         st.session_state.cust_logged_in = False
         st.session_state.cust_mobile = ""
@@ -84,13 +115,13 @@ if st.session_state.cust_logged_in:
 
     st.stop()
 
-# --- FIRST-TIME PASSWORD SETUP (If pre-registered by bookstore without password) ---
+# --- 2. FIRST-TIME PASSWORD SETUP (Pre-registered by bookstore) ---
 if st.session_state.cust_first_login_setup:
     st.warning("🔒 First-time login detected. Please set up your secure password.")
     with st.form("setup_pwd_form"):
         new_pwd = st.text_input("Create New Password", type="password")
         confirm_pwd = st.text_input("Confirm New Password", type="password")
-        setup_btn = st.form_submit_button("Save Password & Enter Portal", use_container_width=True)
+        setup_btn = st.form_submit_button("Save Password & View Card", use_container_width=True)
         
         if setup_btn:
             if not new_pwd.strip():
@@ -105,7 +136,6 @@ if st.session_state.cust_first_login_setup:
                         "updated_at": datetime.utcnow().isoformat()
                     }).eq("mobile_number", st.session_state.cust_mobile).execute()
                     
-                    # Fetch updated record and log in
                     res = supabase.table("loyalty_cards").select("*").eq("mobile_number", st.session_state.cust_mobile).execute()
                     st.session_state.cust_data = res.data[0]
                     st.session_state.cust_logged_in = True
@@ -116,12 +146,11 @@ if st.session_state.cust_first_login_setup:
                     st.error(f"Error setting password: {e}")
     st.stop()
 
-# --- AUTHENTICATION & SELF-REGISTRATION TABS ---
-tab_login, tab_register = st.tabs(["🔑 Customer Login", "📝 Register New Account"])
+# --- 3. LOGIN & SELF-REGISTRATION TABS ---
+tab_login, tab_register = st.tabs(["🔑 Customer Login", "📝 Register New Card"])
 
-# 1. CUSTOMER LOGIN TAB
 with tab_login:
-    st.subheader("Access Your Loyalty Card")
+    st.subheader("View Your Stamp Card")
     with st.form("cust_login_form"):
         login_mobile = st.text_input("Mobile Number", placeholder="e.g., 555-0200")
         login_password = st.text_input("Password", type="password", placeholder="Enter your password")
@@ -139,7 +168,6 @@ with tab_login:
                         cust = res.data[0]
                         stored_hash = cust.get("password_hash")
                         
-                        # Check if pre-registered by bookstore without a password hash yet
                         if not stored_hash:
                             st.session_state.cust_mobile = login_mobile.strip()
                             st.session_state.cust_first_login_setup = True
@@ -157,9 +185,8 @@ with tab_login:
                 except Exception as e:
                     st.error(f"Login error: {e}")
 
-# 2. SELF-REGISTRATION TAB
 with tab_register:
-    st.subheader("Create a New Loyalty Account")
+    st.subheader("Register a New Loyalty Card")
     with st.form("cust_reg_form"):
         reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
         reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
@@ -174,7 +201,6 @@ with tab_register:
                 st.error("Mobile number, name, and password are required.")
             else:
                 try:
-                    # Check if mobile already exists
                     check_res = supabase.table("loyalty_cards").select("mobile_number").eq("mobile_number", reg_mobile.strip()).execute()
                     if check_res.data:
                         st.error("An account with this mobile number already exists. Please log in instead.")
@@ -197,6 +223,6 @@ with tab_register:
                         }
                         
                         supabase.table("loyalty_cards").insert(new_cust_payload).execute()
-                        st.success("🎉 Account created successfully! You can now switch to the 'Customer Login' tab to log in.")
+                        st.success("🎉 Account created successfully! Switch to the 'Customer Login' tab to log in.")
                 except Exception as e:
                     st.error(f"Registration error: {e}")
