@@ -101,7 +101,7 @@ if st.session_state.cust_logged_in:
 
     
         # Native side-by-side columns for the two discounts with compact spacing
-        d_col1, d_col2, spacer = st.columns([1, 1, 2], gap="xsmall"))
+        d_col1, d_col2, spacer = st.columns([1, 1, 2], gap="xsmall")
 
         with d_col1:
             if 0 < discounts:
