@@ -6,7 +6,7 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- MOBILE STYLING & TIGHT GRID FIXES ---
+# --- MOBILE STYLING & COMPACT GRID FIXES ---
 st.markdown("""
 <style>
     /* Apply forest green color across text elements */
@@ -21,22 +21,24 @@ st.markdown("""
         color: #307041 !important;
     }
 
-    /* Eliminate huge column gaps on mobile phones */
+    /* Prevent horizontal scrolling and tighten mobile grid spacing */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
-            gap: 2px !important; /* Extremely tight gap */
+            width: 100% !important;
+            gap: 4px !important;
         }
         div[data-testid="column"] {
             flex: 1 !important;
-            width: auto !important;
             min-width: 0 !important;
-            padding: 0 1px !important; /* Zero out padding */
+            max-width: none !important;
+            padding: 0 2px !important;
+            text-align: center !important;
         }
-        /* Compact text on mobile */
-        div[data-testid="column"] p, div[data-testid="column"] caption, div[data-testid="column"] div {
+        /* Make captions compact so they don't break layout */
+        div[data-testid="column"] p, div[data-testid="column"] caption {
             font-size: 10px !important;
             white-space: nowrap !important;
             overflow: hidden !important;
@@ -91,7 +93,7 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
-        # Earned Discounts in ONE row (tight side-by-side)
+        # Earned Discounts in ONE row (side-by-side, compact fit)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         gift_cols = st.columns(2)
         for g in range(2):
@@ -106,7 +108,7 @@ if st.session_state.cust_logged_in:
 
         st.divider()
 
-        # Book Purchase Progress in a tight 3x3 Grid
+        # Book Purchase Progress in a snug 3x3 Grid
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
