@@ -6,7 +6,7 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- STYLING & MOBILE FIXES ---
+# --- MOBILE STYLING & RESPONSIVE GRID FIXES ---
 st.markdown("""
 <style>
     /* Apply forest green color across text elements */
@@ -14,23 +14,33 @@ st.markdown("""
         color: #307041 !important;
     }
 
-    /* Enlarge and style Tab Text explicitly */
+    /* Enlarge tab text */
     button[data-baseweb="tab"] div p {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
         color: #307041 !important;
     }
 
-    /* Force columns to stay side-by-side on mobile screens */
+    /* Force columns to stay side-by-side on mobile screens for discounts & stamps */
     @media (max-width: 768px) {
-        .horizontal-mobile [data-testid="stHorizontalBlock"] {
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
+            gap: 4px !important;
         }
-        .horizontal-mobile [data-testid="column"] {
+        div[data-testid="column"] {
             flex: 1 !important;
             width: auto !important;
             min-width: 0 !important;
+            padding: 0 2px !important;
+        }
+        /* Make discount and stamp captions compact on mobile */
+        div[data-testid="column"] p, div[data-testid="column"] caption, div[data-testid="column"] div {
+            font-size: 11px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
     }
 </style>
@@ -81,27 +91,26 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
+        # Earned Discounts in ONE row (side-by-side, compact on mobile)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
-        st.markdown('<div class="horizontal-mobile">', unsafe_allow_html=True)
         gift_cols = st.columns(2)
         for g in range(2):
             with gift_cols[g]:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                    st.image("discount.png", width=40)
-                    st.caption(f"Discount #{g+1} (Ready! Exp: {exp_str})")
+                    st.image("discount.png", width=35)
+                    st.caption(f"Discount #{g+1} (Ready! {exp_str})")
                 else:
-                    st.image("discountE.png", width=40)
+                    st.image("discountE.png", width=35)
                     st.caption(f"Discount #{g+1} (Locked)")
-        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
 
+        # Book Purchase Progress in a responsive 3x3 Grid
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
         for row in range(3):
-            st.markdown('<div class="horizontal-mobile">', unsafe_allow_html=True)
             cols = st.columns(3)
             for col in range(3):
                 idx = row * 3 + col
@@ -112,7 +121,6 @@ if st.session_state.cust_logged_in:
                     else:
                         st.markdown("### ⚪")
                         st.caption(f"Book {idx+1}")
-            st.markdown('</div>', unsafe_allow_html=True)
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
@@ -291,4 +299,4 @@ with tab_register:
                         supabase.table("loyalty_cards").insert(new_cust_payload).execute()
                         st.toast("🎉 Account created successfully! Please log in.", icon="✅")
                 except Exception as e:
-                    st.error(f"Registration error: {e}")
+                    st.error(f"Error registering account: {e}")
