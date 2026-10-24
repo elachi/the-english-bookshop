@@ -1,7 +1,7 @@
-
 import streamlit as st
 from datetime import datetime
 from supabase import create_client
+from argon2 import PasswordHasher
 
 # --- SECURITY CHECK ---
 if not st.session_state.get("logged_in", False):
@@ -10,17 +10,22 @@ if not st.session_state.get("logged_in", False):
 
 supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
+st.title("📝 New Members & Profile Editor")
 
-st.image("Logo_EnglishBookshop_logo.png", width=150)
-st.title("📝 New members & profile Editor")
+# --- ARGON2ID PASSWORD HASHER ---
+ph = PasswordHasher()
 
-# --- INITIALIZE SESSION STATES & CLEAR FLAGS ---
+def hash_password(password: str) -> str:
+    return ph.hash(password)
+
+# --- SESSION STATES ---
 if "edit_search" not in st.session_state:
     st.session_state.edit_search = ""
 if "do_clear_edit" not in st.session_state:
     st.session_state.do_clear_edit = False
+if "confirm_delete" not in st.session_state:
+    st.session_state.confirm_delete = False
 
-# Process clearing BEFORE widgets render (prevents instantiation errors)
 if st.session_state.do_clear_edit:
     st.session_state.edit_search = ""
     st.session_state.do_clear_edit = False
@@ -29,9 +34,7 @@ if st.session_state.do_clear_edit:
 def reset_edit_search():
     st.session_state.do_clear_edit = True
 
-# Tabs for Registration vs Editing
 tab_reg, tab_edit = st.tabs(["➕ Register New Member", "🔍 Search & Edit Member"])
-
 
 # ------------------------------------------
 # TAB 1: REGISTER NEW MEMBER
@@ -39,25 +42,35 @@ tab_reg, tab_edit = st.tabs(["➕ Register New Member", "🔍 Search & Edit Memb
 with tab_reg:
     st.subheader("Onboard Walk-In Customer")
     
-    # clear_on_submit=True handles auto-clearing after successful registration
     with st.form("reg_form", clear_on_submit=True):
-        new_mobile = st.text_input("Mobile Number (Required - Primary ID)", placeholder="e.g., 555-0200")
+        new_mobile = st.text_input("Mobile Number * (Required - Primary ID)", placeholder="e.g., 555-0200")
         new_name = st.text_input("Customer Name", placeholder="e.g., Jane Doe")
+        
+        # --- PASSWORD FIELD ---
+        new_password = st.text_input("Member Password * (Required)", type="password", placeholder="Enter member password")
+        
         new_email = st.text_input("Email (Optional)", placeholder="e.g., jane@hotmail.com")
         initial_stamps = st.number_input("Initial Book Stamps", min_value=0, max_value=9, value=0)
+        receive_ads = st.checkbox("Receive promotional emails & special offer ads", value=True)
         
         submitted = st.form_submit_button("Create Member Card", use_container_width=True)
             
         if submitted:
-            if not new_mobile:
-                st.error("Mobile number is required.")
+            if not new_mobile.strip():
+                st.error("❌ Mobile number is required.")
+            elif not new_password.strip():
+                st.error("❌ Password is required for member account creation.")
             else:
                 try:
                     now_str = datetime.utcnow().isoformat()
+                    encrypted_pwd = hash_password(new_password) # Never saved in plain text
+                    
                     supabase.table("loyalty_cards").insert({
                         "mobile_number": new_mobile.strip(),
                         "email": new_email.strip().lower() if new_email else None,
-                        "name": new_name.strip(),
+                        "name": new_name.strip() if new_name else "Valued Customer",
+                        "password_hash": encrypted_pwd,
+                        "receive_ads": receive_ads,
                         "stamps": initial_stamps,
                         "free_cups": 0,
                         "free_cup_expiries": [],
@@ -66,14 +79,10 @@ with tab_reg:
                         "last_visit": now_str,
                         "updated_at": now_str
                     }).execute()
-                    st.success(f"✅ Successfully registered {new_name.strip()} ({new_mobile})!")
+                    
+                    st.success(f"✅ Successfully registered member! (Mobile: {new_mobile.strip()})")
                 except Exception as e:
-                    st.error(f"Error: {e}")
-
-
-
-
-
+                    st.error(f"Error creating account: {e}")
 
 # ------------------------------------------
 # TAB 2: SEARCH & EDIT MEMBER
@@ -81,12 +90,11 @@ with tab_reg:
 with tab_edit:
     st.subheader("Edit Existing Member Details")
     
-    # Search input tied to session state with a clear button next to it
     col_input, col_btn = st.columns([4, 1])
     with col_input:
         search_query = st.text_input("Lookup Mobile or Email to Edit", placeholder="Enter mobile number...", key="edit_search")
     with col_btn:
-        st.markdown("<br>", unsafe_allow_html=True) # Align button with text input
+        st.markdown("<br>", unsafe_allow_html=True)
         st.button("🧹 Clear", on_click=reset_edit_search, use_container_width=True)
 
     if search_query:
@@ -104,8 +112,10 @@ with tab_edit:
                     e_name = st.text_input("Name", value=m.get("name", ""))
                     e_mobile = st.text_input("Mobile Number", value=m.get("mobile_number", ""))
                     e_email = st.text_input("Email", value=m.get("email", "") or "")
+                    e_password = st.text_input("Reset Password (Leave blank to keep existing)", type="password")
                     e_stamps = st.number_input("Stamps", min_value=0, max_value=9, value=int(m.get("stamps", 0)))
                     e_discounts = st.number_input("Discounts Bank", min_value=0, max_value=2, value=int(m.get("free_cups", 0)))
+                    e_receive_ads = st.checkbox("Receive promotional emails & special offer ads", value=bool(m.get("receive_ads", True)))
                     
                     c1, c2 = st.columns(2)
                     with c1:
@@ -115,15 +125,19 @@ with tab_edit:
                     
                     if update_btn:
                         try:
-                            supabase.table("loyalty_cards").update({
+                            update_payload = {
                                 "name": e_name,
                                 "mobile_number": e_mobile,
                                 "email": e_email if e_email else None,
                                 "stamps": e_stamps,
                                 "free_cups": e_discounts,
+                                "receive_ads": e_receive_ads,
                                 "updated_at": datetime.utcnow().isoformat()
-                            }).eq("mobile_number", m["mobile_number"]).execute()
+                            }
+                            if e_password.strip():
+                                update_payload["password_hash"] = hash_password(e_password.strip())
                             
+                            supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", m["mobile_number"]).execute()
                             st.success("Profile updated successfully!")
                             st.rerun()
                         except Exception as update_err:
@@ -133,9 +147,8 @@ with tab_edit:
                         st.session_state.confirm_delete = True
                         st.rerun()
 
-                # --- DELETE CONFIRMATION DIALOGUE (Outside the form) ---
                 if st.session_state.confirm_delete:
-                    st.warning(f"⚠️ **Confirm Deletion**: Are you sure you want to permanently delete member **{customer_name}** ({m['mobile_number']})?")
+                    st.warning(f"⚠️ **Confirm Deletion**: Are you sure you want to delete **{customer_name}**?")
                     d_yes, d_no = st.columns(2)
                     with d_yes:
                         if st.button("✅ Yes, Delete Permanently", use_container_width=True):
