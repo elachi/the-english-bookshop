@@ -11,7 +11,7 @@ if not st.session_state.get("logged_in", False):
 supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
 
-st.image("icons/Logo_EnglishBookshop_Logo.png", width=150)
+st.image("Logo_EnglishBookshop_Logo.png", width=150)
 st.title("📝 New members & profile Editor")
 
 # --- INITIALIZE SESSION STATES & CLEAR FLAGS ---
