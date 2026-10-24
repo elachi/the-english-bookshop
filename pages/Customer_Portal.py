@@ -4,7 +4,7 @@ from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-st.set_page_config(page_title="My Customer Card", page_icon="📚", layout="centered")
+st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
 # Supabase Connection Setup
 try:
@@ -41,7 +41,6 @@ st.title("📚 My Bookstore Loyalty Card")
 # --- DISPLAY PERSISTENT SUCCESS MESSAGE IF ANY ---
 if st.session_state.cust_success_msg:
     st.success(st.session_state.cust_success_msg)
-    # Clear message after rendering so it doesn't repeat indefinitely on unrelated interactions
     st.session_state.cust_success_msg = ""
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
@@ -108,7 +107,6 @@ if st.session_state.cust_logged_in:
                         "updated_at": datetime.utcnow().isoformat()
                     }
                     
-                    # If they typed a new password, require and verify the old password first
                     if new_pwd_input.strip():
                         if not old_pwd_input.strip():
                             st.error("❌ Please enter your current password to set a new one.")
@@ -127,7 +125,6 @@ if st.session_state.cust_logged_in:
                             except VerifyMismatchError:
                                 st.error("❌ Incorrect current password.")
                     else:
-                        # Updating name or ad preferences without changing password
                         supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
                         
                         res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
