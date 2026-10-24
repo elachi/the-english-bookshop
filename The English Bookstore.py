@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 from supabase import create_client
 
-st.set_page_config(page_title="Bookstore CRM - Scanner", page_icon="📚")
+st.set_page_config(page_title="The English Bookstore stamp programme", page_icon="📚")
 #, layout="wide"
 
 # Supabase Connection Setup
@@ -41,7 +41,7 @@ def clear_scanner():
 if not st.session_state.logged_in:
     st.image("Logo_EnglishBookshop_logo.png", width=150)
 
-    st.title("📚 The English Bookstore stamp programme")
+    st.title("📚 The stamp loyality programme")
     with st.form("login_form"):
         username_input = st.text_input("Username")
         password_input = st.text_input("Password", type="password")
