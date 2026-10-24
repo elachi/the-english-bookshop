@@ -1,11 +1,25 @@
 import streamlit as st
-import time
 from datetime import datetime
 from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-st.set_page_config(page_title="My Loyalty Card", page_icon="📚", layout="centered")
+st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
+
+# --- MOBILE CSS FIX (Prevents columns from stacking vertically on phones) ---
+st.markdown("""
+<style>
+    /* Force columns to stay side-by-side on mobile devices */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+    }
+    [data-testid="column"] {
+        flex: 1 !important;
+        min-width: unset !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Supabase Connection Setup
 try:
@@ -33,25 +47,9 @@ if "cust_data" not in st.session_state:
     st.session_state.cust_data = None
 if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
-if "cust_success_msg" not in st.session_state:
-    st.session_state.cust_success_msg = ""
-if "msg_timestamp" not in st.session_state:
-    st.session_state.msg_timestamp = 0.0
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
 st.title("📚 My Bookstore Loyalty Card")
-
-# --- AUTO-DISAPPEARING SUCCESS MESSAGE (5 SECONDS) ---
-if st.session_state.cust_success_msg:
-    st.success(st.session_state.cust_success_msg)
-    if time.time() - st.session_state.msg_timestamp > 5.0:
-        st.session_state.cust_success_msg = ""
-        st.session_state.msg_timestamp = 0.0
-        st.rerun()
-
-def trigger_success(msg):
-    st.session_state.cust_success_msg = msg
-    st.session_state.msg_timestamp = time.time()
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD (TWO TABS) ---
 if st.session_state.cust_logged_in:
@@ -64,7 +62,6 @@ if st.session_state.cust_logged_in:
 
     st.markdown(f"### Welcome back, **{customer_name}**!")
     
-    # Create the two requested tabs
     tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
@@ -95,10 +92,10 @@ if st.session_state.cust_logged_in:
                 with cols[col]:
                     if idx < current_stamps:
                         st.markdown(f"### {book_emojis[idx]}")
-                        st.caption(f"Book {idx+1} (Collected)")
+                        st.caption(f"Book {idx+1}")
                     else:
                         st.markdown("### ⚪")
-                        st.caption(f"Book {idx+1} (Empty)")
+                        st.caption(f"Book {idx+1}")
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
@@ -142,7 +139,7 @@ if st.session_state.cust_logged_in:
                                 res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", e_mobile.strip()).execute()
                                 st.session_state.cust_data = res_refresh.data[0]
                                 st.session_state.cust_mobile = e_mobile.strip()
-                                trigger_success("✅ Profile and password updated successfully!")
+                                st.toast("✅ Profile and password updated successfully!", icon="🎉")
                                 st.rerun()
                             except VerifyMismatchError:
                                 st.error("❌ Incorrect current password.")
@@ -152,7 +149,7 @@ if st.session_state.cust_logged_in:
                         res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", e_mobile.strip()).execute()
                         st.session_state.cust_data = res_refresh.data[0]
                         st.session_state.cust_mobile = e_mobile.strip()
-                        trigger_success("✅ Profile updated successfully!")
+                        st.toast("✅ Profile updated successfully!", icon="🎉")
                         st.rerun()
                         
                 except Exception as update_err:
@@ -192,7 +189,7 @@ if st.session_state.cust_first_login_setup:
                     st.session_state.cust_data = res.data[0]
                     st.session_state.cust_logged_in = True
                     st.session_state.cust_first_login_setup = False
-                    trigger_success("✅ Password saved successfully!")
+                    st.toast("✅ Password saved successfully!", icon="🎉")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error setting password: {e}")
@@ -230,7 +227,7 @@ with tab_login:
                                 st.session_state.cust_logged_in = True
                                 st.session_state.cust_data = cust
                                 st.session_state.cust_mobile = cust["mobile_number"]
-                                trigger_success("✅ Login successful!")
+                                st.toast("✅ Login successful!", icon="🎉")
                                 st.rerun()
                             except VerifyMismatchError:
                                 st.error("❌ Incorrect password.")
@@ -275,7 +272,7 @@ with tab_register:
                         }
                         
                         supabase.table("loyalty_cards").insert(new_cust_payload).execute()
-                        trigger_success("🎉 Account created successfully! Please switch to the 'Customer Login' tab to log in.")
+                        st.toast("🎉 Account created successfully! Please log in.", icon="✅")
                         st.rerun()
                 except Exception as e:
                     st.error(f"Registration error: {e}")
