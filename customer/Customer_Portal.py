@@ -294,3 +294,9 @@ with tab_register:
                             "created_at": now_str,
                             "last_visit": now_str,
                             "updated_at": now_str
+                        }
+                        
+                        supabase.table("loyalty_cards").insert(new_cust_payload).execute()
+                        st.toast("🎉 Account created successfully! Please log in.", icon="✅")
+                except Exception as e:
+                    st.error(f"Error registering account: {e}")
