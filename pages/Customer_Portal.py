@@ -77,11 +77,17 @@ if st.session_state.cust_logged_in:
 
     st.divider()
 
-    # --- EDIT PROFILE SECTION (Name, Password, Ads Checkbox) ---
+    # --- EDIT PROFILE SECTION (Name, Password with Old Password Check, Ads Checkbox) ---
     with st.expander("⚙️ Edit My Profile (Name, Password & Ad Preferences)"):
         with st.form("edit_profile_form"):
             new_name_input = st.text_input("Name", value=data.get("name", ""))
-            new_pwd_input = st.text_input("New Password (leave blank to keep current)", type="password")
+            
+            st.markdown("---")
+            st.markdown("🔒 **Change Password** (Fill out only if changing password)")
+            old_pwd_input = st.text_input("Current Password", type="password", placeholder="Enter current password")
+            new_pwd_input = st.text_input("New Password", type="password", placeholder="Enter new password")
+            
+            st.markdown("---")
             receive_ads_input = st.checkbox("Receive promotional emails & special offer ads", value=bool(data.get("receive_ads", True)))
             
             save_profile_btn = st.form_submit_button("Save Profile Changes", use_container_width=True)
@@ -93,16 +99,35 @@ if st.session_state.cust_logged_in:
                         "receive_ads": receive_ads_input,
                         "updated_at": datetime.utcnow().isoformat()
                     }
+                    
+                    # If they typed a new password, require and verify the old password first
                     if new_pwd_input.strip():
-                        update_payload["password_hash"] = ph.hash(new_pwd_input.strip())
-                    
-                    supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
-                    
-                    # Refresh local session data
-                    res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
-                    st.session_state.cust_data = res_refresh.data[0]
-                    st.success("Profile updated successfully!")
-                    st.rerun()
+                        if not old_pwd_input.strip():
+                            st.error("❌ Please enter your current password to set a new one.")
+                        else:
+                            stored_hash = data.get("password_hash")
+                            try:
+                                ph.verify(stored_hash, old_pwd_input.strip())
+                                # Old password is correct, hash and save new password
+                                update_payload["password_hash"] = ph.hash(new_pwd_input.strip())
+                                
+                                supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
+                                
+                                res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                                st.session_state.cust_data = res_refresh.data[0]
+                                st.success("Profile and password updated successfully!")
+                                st.rerun()
+                            except VerifyMismatchError:
+                                st.error("❌ Incorrect current password.")
+                    else:
+                        # Updating name or ad preferences without changing password
+                        supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
+                        
+                        res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                        st.session_state.cust_data = res_refresh.data[0]
+                        st.success("Profile updated successfully!")
+                        st.rerun()
+                        
                 except Exception as update_err:
                     st.error(f"Error updating profile: {update_err}")
 
