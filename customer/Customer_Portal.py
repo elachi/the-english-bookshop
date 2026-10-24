@@ -6,10 +6,10 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- MOBILE STYLING & COMPACT GRID FIXES ---
+# --- MOBILE STYLING & RESPONSIVE LAYOUT FIXES ---
 st.markdown("""
 <style>
-    /* Apply forest green color across text elements */
+    /* Apply forest green color across all text elements */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #307041 !important;
     }
@@ -21,13 +21,14 @@ st.markdown("""
         color: #307041 !important;
     }
 
-    /* Tight mobile column spacing */
+    /* Force mobile columns to stay side-by-side with tight spacing and zero overflow */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             gap: 4px !important;
+            width: 100% !important;
         }
         div[data-testid="column"] {
             flex: 1 !important;
@@ -82,22 +83,24 @@ if st.session_state.cust_logged_in:
     
     tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
 
-    # --- TAB 1: STAMPS & DISCOUNTS ---
+    # --- TAB 1: STAMPS & DISCOUNTS (Emoji-based mobile-responsive grid) ---
     with tab_stamps:
+        # Earned Discounts in ONE row (side-by-side using emojis)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
         gift_cols = st.columns(2)
         for g in range(2):
             with gift_cols[g]:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                    st.image("discount.png", width=35)
-                    st.caption(f"Discount #{g+1} ({exp_str})")
+                    st.markdown("### 🎟️")
+                    st.caption(f"Discount #{g+1} (Ready!\nExp: {exp_str})")
                 else:
-                    st.image("discountE.png", width=35)
-                    st.caption(f"Discount #{g+1} (Locked)")
+                    st.markdown("### 🔒")
+                    st.caption(f"Discount #{g+1}\n(Locked)")
 
         st.divider()
 
+        # Book Purchase Progress in a 3x3 Grid using emojis
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
