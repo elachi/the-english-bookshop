@@ -32,9 +32,17 @@ if "cust_data" not in st.session_state:
     st.session_state.cust_data = None
 if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
+if "cust_success_message" not in st.session_state:
+    st.session_state.cust_success_message = ""
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
 st.title("📚 My Bookstore Loyalty Card")
+
+# --- DISPLAY PERSISTENT SUCCESS MESSAGE IF EXISTS ---
+if st.session_state.cust_success_message:
+    st.success(st.session_state.cust_success_message)
+    # Clear it after showing once so it doesn't stay forever on unrelated actions
+    st.session_state.cust_success_message = ""
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
 if st.session_state.cust_logged_in:
@@ -45,7 +53,7 @@ if st.session_state.cust_logged_in:
     discounts = data.get("free_cups", 0)
     discount_expiries = data.get("free_cup_expiries", []) or []
 
-    st.success(f"Welcome back, **{customer_name}**!")
+    st.markdown(f"Welcome back, **{customer_name}**!")
     
     # --- EARNED DISCOUNTS BANK ---
     st.markdown("### 🏷️ Your Earned Discounts (Up to 2)")
@@ -77,7 +85,7 @@ if st.session_state.cust_logged_in:
 
     st.divider()
 
-    # --- EDIT PROFILE SECTION (Name, Password with Old Password Check, Ads Checkbox) ---
+    # --- EDIT PROFILE SECTION ---
     with st.expander("⚙️ Edit My Profile (Name, Password & Ad Preferences)"):
         with st.form("edit_profile_form"):
             new_name_input = st.text_input("Name", value=data.get("name", ""))
@@ -100,7 +108,6 @@ if st.session_state.cust_logged_in:
                         "updated_at": datetime.utcnow().isoformat()
                     }
                     
-                    # If they typed a new password, require and verify the old password first
                     if new_pwd_input.strip():
                         if not old_pwd_input.strip():
                             st.error("❌ Please enter your current password to set a new one.")
@@ -108,24 +115,22 @@ if st.session_state.cust_logged_in:
                             stored_hash = data.get("password_hash")
                             try:
                                 ph.verify(stored_hash, old_pwd_input.strip())
-                                # Old password is correct, hash and save new password
                                 update_payload["password_hash"] = ph.hash(new_pwd_input.strip())
                                 
                                 supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
                                 
                                 res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
                                 st.session_state.cust_data = res_refresh.data[0]
-                                st.success("Profile and password updated successfully!")
+                                st.session_state.cust_success_message = "✅ Profile and password updated successfully!"
                                 st.rerun()
                             except VerifyMismatchError:
                                 st.error("❌ Incorrect current password.")
                     else:
-                        # Updating name or ad preferences without changing password
                         supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
                         
                         res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
                         st.session_state.cust_data = res_refresh.data[0]
-                        st.success("Profile updated successfully!")
+                        st.session_state.cust_success_message = "✅ Profile updated successfully!"
                         st.rerun()
                         
                 except Exception as update_err:
@@ -136,11 +141,12 @@ if st.session_state.cust_logged_in:
         st.session_state.cust_logged_in = False
         st.session_state.cust_mobile = ""
         st.session_state.cust_data = None
+        st.session_state.cust_success_message = ""
         st.rerun()
 
     st.stop()
 
-# --- 2. FIRST-TIME PASSWORD SETUP (Pre-registered by bookstore) ---
+# --- 2. FIRST-TIME PASSWORD SETUP ---
 if st.session_state.cust_first_login_setup:
     st.warning("🔒 First-time login detected. Please set up your secure password.")
     with st.form("setup_pwd_form"):
@@ -165,7 +171,7 @@ if st.session_state.cust_first_login_setup:
                     st.session_state.cust_data = res.data[0]
                     st.session_state.cust_logged_in = True
                     st.session_state.cust_first_login_setup = False
-                    st.success("Password saved successfully!")
+                    st.session_state.cust_success_message = "✅ Password saved successfully!"
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error setting password: {e}")
@@ -203,7 +209,7 @@ with tab_login:
                                 st.session_state.cust_logged_in = True
                                 st.session_state.cust_data = cust
                                 st.session_state.cust_mobile = cust["mobile_number"]
-                                st.success("Login successful!")
+                                st.session_state.cust_success_message = "✅ Login successful!"
                                 st.rerun()
                             except VerifyMismatchError:
                                 st.error("Incorrect password.")
@@ -248,6 +254,7 @@ with tab_register:
                         }
                         
                         supabase.table("loyalty_cards").insert(new_cust_payload).execute()
-                        st.success("🎉 Account created successfully! Switch to the 'Customer Login' tab to log in.")
+                        st.session_state.cust_success_message = "🎉 Account created successfully! Please log in using the 'Customer Login' tab."
+                        st.rerun()
                 except Exception as e:
                     st.error(f"Registration error: {e}")
