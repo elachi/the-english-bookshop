@@ -6,17 +6,20 @@ from argon2.exceptions import VerifyMismatchError
 
 st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
 
-# --- MOBILE CSS FIX (Prevents columns from stacking vertically on phones) ---
+# --- MOBILE CSS FIX (Forces stamps & discounts to stay side-by-side on phones) ---
 st.markdown("""
 <style>
-    /* Force columns to stay side-by-side on mobile devices */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-    }
-    [data-testid="column"] {
-        flex: 1 !important;
-        min-width: unset !important;
+    @media (max-width: 768px) {
+        .horizontal-mobile [data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+        }
+        .horizontal-mobile [data-testid="column"] {
+            flex: 1 !important;
+            width: auto !important;
+            min-width: 0 !important;
+            font-size: 12px !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -66,8 +69,9 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS ---
     with tab_stamps:
-        # Earned Discounts in ONE row (side-by-side for mobile)
+        # Earned Discounts in ONE row (side-by-side on mobile)
         st.markdown("### 🏷️ Earned Discounts (Up to 2)")
+        st.markdown('<div class="horizontal-mobile">', unsafe_allow_html=True)
         gift_cols = st.columns(2)
         for g in range(2):
             with gift_cols[g]:
@@ -78,14 +82,16 @@ if st.session_state.cust_logged_in:
                 else:
                     st.image("discountE.png", width=40)
                     st.caption(f"Discount #{g+1} (Locked)")
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
 
-        # Book Stamp Progress in a 3x3 Grid
+        # Book Stamp Progress in a 3x3 Grid (side-by-side per row on mobile)
         st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
         
         for row in range(3):
+            st.markdown('<div class="horizontal-mobile">', unsafe_allow_html=True)
             cols = st.columns(3)
             for col in range(3):
                 idx = row * 3 + col
@@ -96,6 +102,7 @@ if st.session_state.cust_logged_in:
                     else:
                         st.markdown("### ⚪")
                         st.caption(f"Book {idx+1}")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
