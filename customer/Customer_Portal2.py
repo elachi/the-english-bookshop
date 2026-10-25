@@ -128,7 +128,7 @@ if st.session_state.cust_logged_in:
                 <span style="font-size: 13px; font-weight: 700; letter-spacing: 1px;">THE ENGLISH BOOKSHOP</span>
             </div>
             <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Book Purchases</div>
-            <div style="font-size: 34px; font-weight: 800; margin: 2px 0;">{current_stamps} / 9 <span style="font-size: 18px; font-weight: 400;">Books</span></div>
+            <div style="font-size: 34px; font-weight: 800; margin: 2px 0;">{current_stamps} / 9 <span style="font-size: 18px; font-weight: 400;">Books 📚</span></div>
             <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📖 Keep reading to unlock your bookstore discount!</div>
         </div>
         """
@@ -141,7 +141,7 @@ if st.session_state.cust_logged_in:
                 Discount Reward Locked
             </div>
             <div style="font-size: 11px; color: #78947c; margin-top: 2px;">
-                Only <b>{stamps_left} more book 📚{"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
+                Only <b>{stamps_left} more book 📗 📕{"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
             </div>
         </div>
         """
