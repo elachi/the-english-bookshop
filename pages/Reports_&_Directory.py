@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
-
-
-
+import os
+from datetime import datetime, timezone
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Cafe Loyalty Program", 
-    page_icon="☕", 
+    page_title="The English Bookstore - Reports", 
+    page_icon="📚", 
     layout="centered"
 )
 
@@ -22,60 +21,127 @@ st.markdown("""
         /* Hides the default "Made with Streamlit" footer */
         footer {visibility: hidden;}
         
-        /* Optional: Shifts the main content up slightly so there isn't a blank gap at the top */
+        /* Optional: Shifts the main content up slightly */
         .block-container {
             padding-top: 2rem;
         }
+
+        /* Apply forest green color across text elements */
+        h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+            color: #307041 !important;
+        }
     </style>
 """, unsafe_allow_html=True)
-
-
-
-
-
 
 if not st.session_state.get("logged_in", False):
     st.warning("Please log in from the main home page first.")
     st.stop()
 
-supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
+# Supabase Connection Setup
+try:
+    SUPABASE_URL = st.secrets.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = st.secrets.get("SUPABASE_KEY") or os.environ.get("SUPABASE_KEY")
+except Exception:
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+@st.cache_resource
+def init_supabase():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    return create_client(SUPABASE_URL.strip().rstrip('/'), SUPABASE_KEY)
+
+supabase = init_supabase()
 
 st.image("Logo_EnglishBookshop_logo.png", width=150)
-
 st.title("📊 Bookstore Reports & Analytics")
 
+if not supabase:
+    st.error("Database connection missing.")
+    st.stop()
+
 try:
-    res = supabase.table("loyalty_cards").select("*").order("created_at", desc=True).execute()
+    res = supabase.table("loyalty_cards").select("*").execute()
     data = res.data
 
     if data:
         df = pd.DataFrame(data)
         
+        # Ensure date columns are parsed correctly
+        if "created_at" in df.columns:
+            df["created_at_dt"] = pd.to_datetime(df["created_at"], errors='coerce')
+        if "last_stamp_at" in df.columns:
+            df["last_stamp_at_dt"] = pd.to_datetime(df["last_stamp_at"], errors='coerce')
+        else:
+            df["last_stamp_at_dt"] = df["created_at_dt"]
+
         # Summary Metrics
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Members", len(df))
-        col2.metric("Total Stamps Logged", int(df["stamps"].sum()))
-        col3.metric("Total Active Discounts", int(df["free_cups"].sum()))
+        col2.metric("Total Stamps Logged", int(df["stamps"].sum()) if "stamps" in df.columns else 0)
+        col3.metric("Total Active Discounts", int(df["free_cups"].sum()) if "free_cups" in df.columns else 0)
         
         st.divider()
+
+        # Regular Customers Filter (Members with >= 5 stamps or free cups)
+        regulars = df[(df["stamps"] >= 5) | (df["free_cups"] > 0)].copy() if "stamps" in df.columns and "free_cups" in df.columns else df.copy()
+
+        st.subheader("🌟 Regular Customer Leaderboards")
         
-        # Filter Regulars (Members with 5 or more stamps or redeemed rewards)
-        st.subheader("🌟 Regular Customers")
-        regulars = df[(df["stamps"] >= 5) | (df["free_cups"] > 0)]
+        # Display limit selector
+        top_limit = st.selectbox("Show Top:", [5, 10, 20], index=0, key="leaderboard_limit")
+
         if not regulars.empty:
-            st.dataframe(regulars[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]], use_container_width=True)
+            now = pd.Timestamp.now(tz=timezone.utc) if regulars["created_at_dt"].dt.tz is not None else pd.Timestamp.now()
+            
+            # 1. THIS MONTH REGULARS
+            st.markdown("### 📅 Top Regulars This Month")
+            current_month_start = pd.Timestamp(now.year, now.month, 1, tz=now.tz if hasattr(now, 'tz') and now.tz else None)
+            df_month = regulars[regulars["last_stamp_at_dt"] >= current_month_start].sort_values(by="stamps", ascending=False)
+            
+            if not df_month.empty:
+                st.dataframe(df_month[["name", "mobile_number", "email", "stamps", "free_cups", "last_stamp_at"]].head(top_limit), use_container_width=True)
+            else:
+                st.info("No regular customer activity recorded this month yet.")
+
+            # 2. LAST 3 MONTHS REGULARS
+            st.markdown("### 🗓️ Top Regulars (Last 3 Months)")
+            three_months_ago = current_month_start - pd.DateOffset(months=3)
+            df_3months = regulars[regulars["last_stamp_at_dt"] >= three_months_ago].sort_values(by="stamps", ascending=False)
+            
+            if not df_3months.empty:
+                st.dataframe(df_3months[["name", "mobile_number", "email", "stamps", "free_cups", "last_stamp_at"]].head(top_limit), use_container_width=True)
+            else:
+                st.info("No regular customer activity recorded in the last 3 months.")
+
+            # 3. ALL-TIME REGULARS
+            st.markdown("### 🏆 Top Regulars (All-Time)")
+            df_alltime = regulars.sort_values(by="stamps", ascending=False)
+            st.dataframe(df_alltime[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
+            
         else:
             st.info("No regular customer milestones hit yet.")
             
         st.divider()
         
-        # Full Directory & Export
+        # Full Member Directory (Sorted by latest registered, restricted columns)
         st.subheader("📁 Full Member Directory & Export")
-        st.dataframe(df, use_container_width=True)
         
+        if "created_at_dt" in df.columns:
+            df_sorted = df.sort_values(by="created_at_dt", ascending=False)
+        else:
+            df_sorted = df
+
+        # Restrict visible columns to name, mobile_number, email, created_at
+        directory_columns = ["name", "mobile_number", "email", "created_at"]
+        available_dir_cols = [col for col in directory_columns if col in df_sorted.columns]
+        
+        st.dataframe(df_sorted[available_dir_cols], use_container_width=True)
+        
+        # CSV Export (Exports full data set for backup/admin purposes)
         csv_data = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Export Member Directory to CSV",
+            label="📥 Export Full Member Directory to CSV",
             data=csv_data,
             file_name=f"bookstore_members_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv",
@@ -85,6 +151,3 @@ try:
         st.info("No member data found.")
 except Exception as e:
     st.error(f"Error generating reports: {e}")
-
-
-#Testing
