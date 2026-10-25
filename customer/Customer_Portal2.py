@@ -6,6 +6,33 @@ from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
+
+# 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
+st.set_page_config(
+    page_title="Cafe Loyalty Program", 
+    page_icon="☕", 
+    layout="centered"
+)
+
+# 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
+st.markdown("""
+    <style>
+        /* Hides the top-right hamburger menu and Deploy button */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* Hides the default "Made with Streamlit" footer */
+        footer {visibility: hidden;}
+        
+        /* Optional: Shifts the main content up slightly so there isn't a blank gap at the top */
+        .block-container {
+            padding-top: 2rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+
+
 st.set_page_config(page_title="My Bookstore Loyalty Card - V2", page_icon="📚", layout="centered")
 
 # --- MOBILE STYLING & DIGITAL CARD THEME ---
