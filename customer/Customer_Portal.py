@@ -51,7 +51,7 @@ if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
-st.title("My Bookstore Card")
+st.title("Bookstore Card")
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD (TWO TABS) ---
 if st.session_state.cust_logged_in:
@@ -216,7 +216,7 @@ if st.session_state.cust_first_login_setup:
 tab_login, tab_register = st.tabs(["🔑 Customer Login", "📝 Register New Card"])
 
 with tab_login:
-    st.subheader("Login using mobile number and password")
+    st.subheader("Enter mobile number and password")
     with st.form("cust_login_form"):
         login_mobile = st.text_input("Mobile Number", placeholder="e.g., 555-0200")
         login_password = st.text_input("Password", type="password", placeholder="Enter your password")
