@@ -18,7 +18,7 @@ st.markdown("""
 
     /* Enlarge tab text */
     button[data-baseweb="tab"] div p {
-        font-size: 1.15rem !important;
+        font-size: 1.05rem !important;
         font-weight: 600 !important;
         color: #307041 !important;
     }
@@ -80,8 +80,6 @@ if "cust_data" not in st.session_state:
     st.session_state.cust_data = None
 if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
-if "show_qr_modal" not in st.session_state:
-    st.session_state.show_qr_modal = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
 st.title("📚 My Bookstore Card (V2)")
@@ -97,20 +95,11 @@ if st.session_state.cust_logged_in:
 
     st.markdown(f"### Welcome back, **{customer_name}**!")
     
-    tab_stamps, tab_profile = st.tabs(["📖 Digital Card & Rewards", "⚙️ Profile Editor"])
+    # Three Tabs: Digital Card, QR Code, Profile Editor
+    tab_stamps, tab_qr, tab_profile = st.tabs(["📖 Digital Card", "📱 My QR Code", "⚙️ Profile Editor"])
 
     # --- TAB 1: DIGITAL CARD & REWARDS ---
     with tab_stamps:
-        # QR Code Expandable Toggle Button
-        if st.button("📱 Show Member QR Code", use_container_width=True):
-            st.session_state.show_qr_modal = not st.session_state.show_qr_modal
-
-        if st.session_state.show_qr_modal:
-            st.info("Scan this code at the counter to update your stamps:")
-            qr_bytes = generate_qr_code(customer_mobile)
-            st.image(qr_bytes, width=180)
-            st.caption(f"Member ID / Mobile: {customer_mobile}")
-
         # Calculate remaining stamps until next discount (assuming target is 9)
         stamps_left = max(0, 9 - (current_stamps % 9))
         if stamps_left == 0 and current_stamps > 0:
@@ -167,7 +156,19 @@ if st.session_state.cust_logged_in:
             st.markdown(stamps_card_html, unsafe_allow_html=True)
             st.markdown(locked_disc_html, unsafe_allow_html=True)
 
-    # --- TAB 2: PROFILE EDITOR ---
+    # --- TAB 2: MY QR CODE ---
+    with tab_qr:
+        st.markdown("### 📱 Member QR Code")
+        st.markdown("Show this QR code at the bookstore counter to scan and update your stamps:")
+        
+        # Center the QR code nicely
+        col_q1, col_q2, col_q3 = st.columns([1, 2, 1])
+        with col_q2:
+            qr_bytes = generate_qr_code(customer_mobile)
+            st.image(qr_bytes, use_container_width=True)
+            st.markdown(f"<div style='text-align: center; font-weight: 600; margin-top: 8px;'>ID: {customer_mobile}</div>", unsafe_allow_html=True)
+
+    # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
         st.markdown("### 🛠️ Edit Your Profile")
         with st.form("edit_profile_form"):
@@ -241,7 +242,6 @@ if st.session_state.cust_logged_in:
             st.session_state.cust_logged_in = False
             st.session_state.cust_mobile = ""
             st.session_state.cust_data = None
-            st.session_state.show_qr_modal = False
             st.rerun()
 
     st.stop()
