@@ -1,13 +1,18 @@
+
+
 import streamlit as st
-from datetime import datetime, timedelta
+from datetime import datetime
 from supabase import create_client
-import os
-import re
+from argon2 import PasswordHasher
+
+
+
+
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="The English Bookstore stamp programme", 
-    page_icon="📚", 
+    page_title="Cafe Loyalty Program", 
+    page_icon="☕", 
     layout="centered"
 )
 
@@ -28,151 +33,170 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Supabase Connection Setup
-try:
-    SUPABASE_URL = st.secrets.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL")
-    SUPABASE_KEY = st.secrets.get("SUPABASE_KEY") or os.environ.get("SUPABASE_KEY")
-except Exception:
-    SUPABASE_URL = os.environ.get("SUPABASE_URL")
-    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-@st.cache_resource
-def init_supabase():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        return None
-    return create_client(SUPABASE_URL.strip().rstrip('/'), SUPABASE_KEY)
 
-supabase = init_supabase()
 
-# Session State Initialization
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
-if "role" not in st.session_state:
-    st.session_state.role = ""
-if "scanner_search" not in st.session_state:
-    st.session_state.scanner_search = ""
-if "confirm_redeem" not in st.session_state:
-    st.session_state.confirm_redeem = False
-
-def clear_scanner():
-    st.session_state.scanner_search = ""
-    st.session_state.confirm_redeem = False
-
-# Helper function for Swedish mobile validation
-def validate_swedish_mobile(mobile: str) -> bool:
-    # Must start with 07 and be exactly 10 digits total
-    pattern = r"^07\d{8}$"
-    return bool(re.match(pattern, mobile.strip()))
-
-# --- AUTHENTICATION GATE ---
-if not st.session_state.logged_in:
-    st.image("Logo_EnglishBookshop_logo.png", width=150)
-
-    st.title("📚 The stamp loyalty programme")
-    with st.form("login_form"):
-        username_input = st.text_input("Username")
-        password_input = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Log In", use_container_width=True)
-        
-        if login_btn:
-            if not supabase:
-                st.error("Database connection missing.")
-            else:
-                res = supabase.table("app_users").select("*").eq("username", username_input.strip()).eq("password", password_input).execute()
-                if res.data:
-                    st.session_state.logged_in = True
-                    st.session_state.username = res.data[0]["username"]
-                    st.session_state.role = res.data[0]["role"]
-                    st.success("Login successful!")
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials.")
+# --- SECURITY CHECK ---
+if not st.session_state.get("logged_in", False):
+    st.warning("Please log in from the main home page first.")
     st.stop()
 
-# --- SIDEBAR USER INFO ---
-st.sidebar.header("👤 Staff Account")
-st.sidebar.success(f"User: **{st.session_state.username}**\n\nRole: **{st.session_state.role.upper()}**")
-if st.sidebar.button("🚪 Log Out", use_container_width=True):
-    st.session_state.logged_in = False
-    st.rerun()
+supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
-# --- MAIN SCANNER VIEW ---
-st.image("Logo_EnglishBookshop_logo.png", width=150)
+st.title("📝 New Members & Profile Editor")
 
-search_input = st.text_input(
-    "Enter Customer Mobile Number or Email:", 
-    placeholder="e.g., 0712345678 or jane@hotmail.com",
-    key="scanner_search"
-)
+# --- ARGON2ID PASSWORD HASHER ---
+ph = PasswordHasher()
 
-# Dynamic button that always appears: Search when empty, Clear when active
-if st.session_state.scanner_search:
-    st.button("🔄 Clear / Scan New Customer", on_click=clear_scanner)
-else:
-    if st.button("🔍 Find Customer"):
-        st.rerun()
+def hash_password(password: str) -> str:
+    return ph.hash(password)
 
-if search_input:
-    member_found = False
-    data = None
-    try:
-        query_val = search_input.strip()
-        res = supabase.table("loyalty_cards").select("*").eq("mobile_number", query_val).execute()
-        if not res.data:
-            res = supabase.table("loyalty_cards").select("*").eq("email", query_val.lower()).execute()
+# --- SESSION STATES ---
+if "edit_search" not in st.session_state:
+    st.session_state.edit_search = ""
+if "do_clear_edit" not in st.session_state:
+    st.session_state.do_clear_edit = False
+if "confirm_delete" not in st.session_state:
+    st.session_state.confirm_delete = False
+
+if st.session_state.do_clear_edit:
+    st.session_state.edit_search = ""
+    st.session_state.do_clear_edit = False
+    st.session_state.confirm_delete = False
+
+def reset_edit_search():
+    st.session_state.do_clear_edit = True
+
+tab_reg, tab_edit = st.tabs(["➕ Register New Member", "🔍 Search & Edit Member"])
+
+# ------------------------------------------
+# TAB 1: REGISTER NEW MEMBER
+# ------------------------------------------
+with tab_reg:
+    st.subheader("Onboard Walk-In Customer")
+    
+    with st.form("reg_form", clear_on_submit=True):
+        new_mobile = st.text_input("Mobile Number * (Required - Primary ID)", placeholder="e.g., 555-0200")
+        new_name = st.text_input("Customer Name", placeholder="e.g., Jane Doe")
         
-        if res.data:
-            data = res.data[0]
-            member_found = True
-    except Exception as e:
-        st.error(f"Database error: {e}")
+        # --- PASSWORD FIELD ---
+        new_password = st.text_input("Member Password * (Required)", type="password", placeholder="Enter member password")
+        
+        new_email = st.text_input("Email (Optional)", placeholder="e.g., jane@hotmail.com")
+        initial_stamps = st.number_input("Initial Book Stamps", min_value=0, max_value=9, value=0)
+        receive_ads = st.checkbox("Receive promotional emails & special offer ads", value=True)
+        
+        submitted = st.form_submit_button("Create Member Card", use_container_width=True)
+            
+        if submitted:
+            if not new_mobile.strip():
+                st.error("❌ Mobile number is required.")
+            elif not new_password.strip():
+                st.error("❌ Password is required for member account creation.")
+            else:
+                try:
+                    now_str = datetime.utcnow().isoformat()
+                    encrypted_pwd = hash_password(new_password) # Never saved in plain text
+                    
+                    supabase.table("loyalty_cards").insert({
+                        "mobile_number": new_mobile.strip(),
+                        "email": new_email.strip().lower() if new_email else None,
+                        "name": new_name.strip() if new_name else "Valued Customer",
+                        "password_hash": encrypted_pwd,
+                        "receive_ads": receive_ads,
+                        "stamps": initial_stamps,
+                        "free_cups": 0,
+                        "free_cup_expiries": [],
+                        "created_at": now_str,
+                        "last_stamp_at": now_str if initial_stamps > 0 else None,
+                        "last_visit": now_str,
+                        "updated_at": now_str
+                    }).execute()
+                    
+                    st.success(f"✅ Successfully registered member! (Mobile: {new_mobile.strip()})")
+                except Exception as e:
+                    st.error(f"Error creating account: {e}")
 
-    if member_found:
-        customer_name = data.get("name", "Valued Customer")
-        customer_mobile = data["mobile_number"]
-        customer_id = data["id"]
-        current_stamps = data["stamps"]
-        discounts = data.get("free_cups", 0)  
-        discount_expiries = data.get("free_cup_expiries", []) or []
+# ------------------------------------------
+# TAB 2: SEARCH & EDIT MEMBER
+# ------------------------------------------
+with tab_edit:
+    st.subheader("Edit Existing Member Details")
+    
+    col_input, col_btn = st.columns([4, 1])
+    with col_input:
+        search_query = st.text_input("Lookup Mobile or Email to Edit", placeholder="Enter mobile number...", key="edit_search")
+    with col_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.button("🧹 Clear", on_click=reset_edit_search, use_container_width=True)
 
-        st.subheader(f"Member: {customer_name} (Mobile: {customer_mobile})")
-
-        # --- EDIT CUSTOMER INFO SECTION WITH CONFIRMATION ---
-        with st.expander("✏️ Edit Customer Information"):
-            with st.form("edit_customer_form"):
-                new_name = st.text_input("Customer Name", value=customer_name)
-                new_mobile = st.text_input("Mobile Number (Swedish format e.g. 0712345678)", value=customer_mobile)
-                new_email = st.text_input("Email Address", value=data.get("email", ""))
+    if search_query:
+        try:
+            res = supabase.table("loyalty_cards").select("*").eq("mobile_number", search_query.strip()).execute()
+            if not res.data:
+                res = supabase.table("loyalty_cards").select("*").eq("email", search_query.strip().lower()).execute()
+            
+            if res.data:
+                m = res.data[0]
+                customer_name = m.get("name", "Valued Customer")
+                st.success(f"Found Member: **{customer_name}**")
                 
-                update_btn = st.form_submit_button("Save Changes", use_container_width=True)
-                
-                if update_btn:
-                    cleaned_mobile = new_mobile.strip()
-                    if not validate_swedish_mobile(cleaned_mobile):
-                        st.error("Invalid Swedish mobile number format! Must start with 07 and be 10 digits long (e.g., 0712345678).")
-                    else:
+                with st.form("edit_form"):
+                    e_name = st.text_input("Name", value=m.get("name", ""))
+                    e_mobile = st.text_input("Mobile Number", value=m.get("mobile_number", ""))
+                    e_email = st.text_input("Email", value=m.get("email", "") or "")
+                    e_password = st.text_input("Reset Password (Leave blank to keep existing)", type="password")
+                    e_stamps = st.number_input("Stamps", min_value=0, max_value=9, value=int(m.get("stamps", 0)))
+                    e_discounts = st.number_input("Discounts Bank", min_value=0, max_value=2, value=int(m.get("free_cups", 0)))
+                    e_receive_ads = st.checkbox("Receive promotional emails & special offer ads", value=bool(m.get("receive_ads", True)))
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        update_btn = st.form_submit_button("💾 Save Changes", use_container_width=True)
+                    with c2:
+                        delete_click_btn = st.form_submit_button("🗑️ Delete Member", use_container_width=True)
+                    
+                    if update_btn:
                         try:
-                            supabase.table("loyalty_cards").update({
-                                "name": new_name.strip(),
-                                "mobile_number": cleaned_mobile,
-                                "email": new_email.strip().lower()
-                            }).eq("id", customer_id).execute()
+                            update_payload = {
+                                "name": e_name,
+                                "mobile_number": e_mobile,
+                                "email": e_email if e_email else None,
+                                "stamps": e_stamps,
+                                "free_cups": e_discounts,
+                                "receive_ads": e_receive_ads,
+                                "updated_at": datetime.utcnow().isoformat()
+                            }
+                            if e_password.strip():
+                                update_payload["password_hash"] = hash_password(e_password.strip())
                             
-                            st.success("✅ Customer information updated successfully!")
-                            st.toast("Changes saved!", icon="🎉")
-                        except Exception as err:
-                            st.error(f"Failed to update customer: {err}")
+                            supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", m["mobile_number"]).execute()
+                            st.success("Profile updated successfully!")
+                            st.rerun()
+                        except Exception as update_err:
+                            st.error(f"Error updating profile: {update_err}")
+                    
+                    if delete_click_btn:
+                        st.session_state.confirm_delete = True
+                        st.rerun()
 
-        # --- EARNED BOOKSTORE DISCOUNTS BANK ---
-        st.markdown("### 🏷️ Earned Bookstore Discounts (Bank: Up to 2)")
-        gift_cols = st.columns(2)
-        for g in range(2):
-            with gift_cols[g]:
-                if g < discounts:
-                    st.success(f"Discount #{g+1} Available!")
-                else:
-                    st.info(f"Discount #{g+1} Locked")
-    else:
-        st.warning("No customer found matching that mobile number or email.")
+                if st.session_state.confirm_delete:
+                    st.warning(f"⚠️ **Confirm Deletion**: Are you sure you want to delete **{customer_name}**?")
+                    d_yes, d_no = st.columns(2)
+                    with d_yes:
+                        if st.button("✅ Yes, Delete Permanently", use_container_width=True):
+                            try:
+                                supabase.table("loyalty_cards").delete().eq("mobile_number", m["mobile_number"]).execute()
+                                st.session_state.do_clear_edit = True
+                                st.success("Member deleted.")
+                                st.rerun()
+                            except Exception as del_err:
+                                st.error(f"Error deleting member: {del_err}")
+                    with d_no:
+                        if st.button("❌ Cancel Deletion", use_container_width=True):
+                            st.session_state.confirm_delete = False
+                            st.rerun()
+            else:
+                st.warning("No member found matching that mobile number or email.")
+        except Exception as e:
+            st.error(f"Database error: {e}")
