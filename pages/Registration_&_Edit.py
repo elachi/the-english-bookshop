@@ -74,7 +74,7 @@ with tab_reg:
     st.subheader("Onboard Walk-In Customer")
     
     with st.form("reg_form", clear_on_submit=True):
-        new_mobile = st.text_input("Mobile Number * (Required - Primary ID)", placeholder="e.g., 555-0200")
+        new_mobile = st.text_input("Mobile Number * (Required - Primary ID)", placeholder="e.g., 071 234 56 78")
         new_name = st.text_input("Customer Name", placeholder="e.g., Jane Doe")
         
         # --- PASSWORD FIELD ---
