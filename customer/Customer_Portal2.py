@@ -345,44 +345,54 @@ with tab_login:
                 except Exception as e:
                     st.error(f"Login error: {e}")
 
+
 with tab_register:
-    st.subheader("Register a New Loyalty Card")
-    with st.form("cust_reg_form", clear_on_submit=True):
-        reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
-        reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
-        reg_password = st.text_input("Create Password * (Required)", type="password", placeholder="Choose a secure password")
-        reg_email = st.text_input("Email (Optional)", placeholder="e.g., jane@hotmail.com")
-        reg_receive_ads = st.checkbox("Receive promotional emails & special offer ads", value=True)
-        
-        reg_btn = st.form_submit_button("Register Account", use_container_width=True)
-        
-        if reg_btn:
-            if not reg_mobile.strip() or not reg_password.strip() or not reg_name.strip():
-                st.error("Mobile number, name, and password are required.")
-            else:
-                try:
-                    check_res = supabase.table("loyalty_cards").select("mobile_number").eq("mobile_number", reg_mobile.strip()).execute()
-                    if check_res.data:
-                        st.error("An account with this mobile number already exists. Please log in instead.")
+        st.subheader("Create New Loyalty Account")
+        with st.form("cust_reg_form", clear_on_submit=True):
+            reg_mobile_raw = st.text_input("Mobile Number * (e.g. 071-234-56-78)", placeholder="0712345678")
+            reg_name = st.text_input("Customer Name *", placeholder="Jane Doe")
+            reg_pass = st.text_input("Password *", type="password", placeholder="Create account password")
+            reg_email = st.text_input("Email (Optional)", placeholder="jane@hotmail.com")
+            reg_ads = st.checkbox("Receive promotional emails & special offer ads", value=True)
+            
+            reg_sub = st.form_submit_button("Register & Create Card", use_container_width=True)
+
+            if reg_sub:
+                cleaned_reg_mobile = clean_swedish_mobile(reg_mobile_raw)
+                if not validate_swedish_mobile(cleaned_reg_mobile):
+                    st.error("❌ Invalid Swedish mobile number format! Must start with '07' and be 10 digits (e.g. 0712345678).")
+                elif not reg_name.strip():
+                    st.error("❌ Customer name is required.")
+                elif not reg_pass.strip():
+                    st.error("❌ Password is required.")
+                else:
+                    if not supabase:
+                        st.error("Database connection missing.")
                     else:
-                        now_str = datetime.utcnow().isoformat()
-                        encrypted_pwd = ph.hash(reg_password)
-                        
-                        new_cust_payload = {
-                            "mobile_number": reg_mobile.strip(),
-                            "name": reg_name.strip(),
-                            "password_hash": encrypted_pwd,
-                            "email": reg_email.strip().lower() if reg_email else None,
-                            "receive_ads": reg_receive_ads,
-                            "stamps": 0,
-                            "free_cups": 0,
-                            "free_cup_expiries": [],
-                            "created_at": now_str,
-                            "last_visit": now_str,
-                            "updated_at": now_str
-                        }
-                        
-                        supabase.table("loyalty_cards").insert(new_cust_payload).execute()
-                        st.toast("🎉 Account created successfully! Please log in.", icon="✅")
-                except Exception as e:
-                    st.error(f"Error registering account: {e}")
+                        try:
+                            # FIX: Check existing by mobile_number instead of non-existent 'id'
+                            check_existing = supabase.table("loyalty_cards").select("mobile_number").eq("mobile_number", cleaned_reg_mobile).execute()
+                            if check_existing.data:
+                                st.error("❌ An account with this mobile number already exists.")
+                            else:
+                                now_str = datetime.utcnow().isoformat()
+                                encrypted_pwd = ph.hash(reg_pass)
+
+                                supabase.table("loyalty_cards").insert({
+                                    "mobile_number": cleaned_reg_mobile,
+                                    "name": reg_name.strip(),
+                                    "password_hash": encrypted_pwd,
+                                    "email": reg_email.strip().lower() if reg_email else None,
+                                    "receive_ads": reg_ads,
+                                    "stamps": 0,
+                                    "free_cups": 0,
+                                    "free_cup_expiries": [],
+                                    "created_at": now_str,
+                                    "last_visit": now_str,
+                                    "updated_at": now_str
+                                }).execute()
+
+                                st.success(f"✅ Successfully registered member! ({cleaned_reg_mobile})")
+                                st.toast("Account created successfully!", icon="🎉")
+                        except Exception as e:
+                            st.error(f"Registration error: {e}")
