@@ -1,0 +1,341 @@
+import streamlit as st
+import qrcode
+from io import BytesIO
+from datetime import datetime
+from supabase import create_client
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
+st.set_page_config(page_title="My Bookstore Loyalty Card - V2", page_icon="📚", layout="centered")
+
+# --- MOBILE STYLING & DIGITAL CARD THEME ---
+st.markdown("""
+<style>
+    /* Apply forest green color across text elements */
+    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+        color: #307041 !important;
+    }
+
+    /* Enlarge tab text */
+    button[data-baseweb="tab"] div p {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: #307041 !important;
+    }
+
+    /* Modern Loyalty Card Styling */
+    .loyalty-card {
+        background: linear-gradient(135deg, #307041 0%, #204d2b 100%);
+        padding: 24px;
+        border-radius: 16px;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .loyalty-card * {
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Helper function to generate a dynamic QR code image from a mobile number/ID
+def generate_qr_code(data_string):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(data_string)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return buffered.getvalue()
+
+# Supabase Connection Setup
+try:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+except Exception:
+    SUPABASE_URL = ""
+    SUPABASE_KEY = ""
+
+@st.cache_resource
+def init_supabase():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    return create_client(SUPABASE_URL.strip().rstrip('/'), SUPABASE_KEY)
+
+supabase = init_supabase()
+ph = PasswordHasher()
+
+# Session State Initialization
+if "cust_logged_in" not in st.session_state:
+    st.session_state.cust_logged_in = False
+if "cust_mobile" not in st.session_state:
+    st.session_state.cust_mobile = ""
+if "cust_data" not in st.session_state:
+    st.session_state.cust_data = None
+if "cust_first_login_setup" not in st.session_state:
+    st.session_state.cust_first_login_setup = False
+if "show_qr_modal" not in st.session_state:
+    st.session_state.show_qr_modal = False
+
+st.image("Logo_EnglishBookshop_logo.png", width=120)
+st.title("📚 My Bookstore Card (V2)")
+
+# --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
+if st.session_state.cust_logged_in:
+    data = st.session_state.cust_data
+    customer_name = data.get("name", "Valued Customer")
+    customer_mobile = data["mobile_number"]
+    current_stamps = data.get("stamps", 0)
+    discounts = data.get("free_cups", 0)
+    discount_expiries = data.get("free_cup_expiries", []) or []
+
+    st.markdown(f"### Welcome back, **{customer_name}**!")
+    
+    tab_stamps, tab_profile = st.tabs(["📖 Digital Card & Rewards", "⚙️ Profile Editor"])
+
+    # --- TAB 1: DIGITAL CARD & REWARDS ---
+    with tab_stamps:
+        # Modern Digital Card UI (Inspired by Option 2 reference design)
+        st.markdown(
+            f"""
+            <div class="loyalty-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span style="font-size: 14px; font-weight: 700; letter-spacing: 1px;">THE ENGLISH BOOKSHOP</span>
+                </div>
+                <div style="font-size: 13px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Book Purchases</div>
+                <div style="font-size: 38px; font-weight: 800; margin: 5px 0;">{current_stamps} / 9 <span style="font-size: 20px; font-weight: 400;">Books</span></div>
+                <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">📖 Keep reading to unlock your bookstore discount!</div>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+
+        # QR Code Expandable Section / Toggle Button
+        if st.button("📱 Show Member QR Code", use_container_width=True):
+            st.session_state.show_qr_modal = not st.session_state.show_qr_modal
+
+        if st.session_state.show_qr_modal:
+            st.info("Scan this code at the counter to update your stamps:")
+            qr_bytes = generate_qr_code(customer_mobile)
+            st.image(qr_bytes, width=200)
+            st.caption(f"Member ID / Mobile: {customer_mobile}")
+
+        st.divider()
+
+        # --- SINGLE DISCOUNT SLOT SECTION ---
+        st.markdown("### 🏷️ Earned Reward Discount")
+        
+        disc_col1, disc_col2 = st.columns([1, 3])
+        with disc_col1:
+            if discounts > 0:
+                st.image("discount.png", width=50)
+            else:
+                st.image("discountE.png", width=50)
+                
+        with disc_col2:
+            if discounts > 0:
+                exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
+                st.markdown(f"**Status: Unlocked! 🎉**")
+                st.caption(f"1x Bookstore Discount Available. Expires on: {exp_str}")
+            else:
+                st.markdown("**Status: Locked 🔒**")
+                st.caption("Complete 9 book purchases to unlock your discount reward.")
+
+    # --- TAB 2: PROFILE EDITOR ---
+    with tab_profile:
+        st.markdown("### 🛠️ Edit Your Profile")
+        with st.form("edit_profile_form"):
+            e_name = st.text_input("Name", value=data.get("name", ""))
+            e_mobile = st.text_input("Mobile Number (Primary ID)", value=data.get("mobile_number", ""))
+            e_email = st.text_input("Email", value=data.get("email", "") or "")
+            
+            st.markdown("---")
+            st.markdown("🔒 **Change Password** (Fill out only if changing password)")
+            old_pwd_input = st.text_input("Current Password", type="password", placeholder="Enter current password")
+            new_pwd_input = st.text_input("New Password", type="password", placeholder="Enter new password")
+            
+            st.markdown("---")
+            receive_ads_input = st.checkbox("Receive promotional emails & special offer ads", value=bool(data.get("receive_ads", True)))
+            
+            save_profile_btn = st.form_submit_button("Save Profile Changes", use_container_width=True)
+            
+            if save_profile_btn:
+                try:
+                    update_payload = {
+                        "name": e_name.strip() if e_name else "Valued Customer",
+                        "mobile_number": e_mobile.strip(),
+                        "email": e_email.strip().lower() if e_email else None,
+                        "receive_ads": receive_ads_input,
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                    
+                    if new_pwd_input.strip():
+                        if not old_pwd_input.strip():
+                            st.error("❌ Please enter your current password to set a new one.")
+                        else:
+                            stored_hash = data.get("password_hash")
+                            try:
+                                ph.verify(stored_hash, old_pwd_input.strip())
+                                update_payload["password_hash"] = ph.hash(new_pwd_input.strip())
+                                
+                                supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
+                                
+                                res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", e_mobile.strip()).execute()
+                                st.session_state.cust_data = res_refresh.data[0]
+                                st.session_state.cust_mobile = e_mobile.strip()
+                                st.toast("✅ Profile and password updated successfully!", icon="🎉")
+                                st.rerun()
+                            except VerifyMismatchError:
+                                st.error("❌ Incorrect current password.")
+                    else:
+                        supabase.table("loyalty_cards").update(update_payload).eq("mobile_number", customer_mobile).execute()
+                        
+                        res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", e_mobile.strip()).execute()
+                        st.session_state.cust_data = res_refresh.data[0]
+                        st.session_state.cust_mobile = e_mobile.strip()
+                        st.toast("✅ Profile updated successfully!", icon="🎉")
+                        st.rerun()
+                        
+                except Exception as update_err:
+                    st.error(f"Error updating profile: {update_err}")
+
+    st.divider()
+    
+    # --- REFRESH & LOG OUT BUTTONS ---
+    with st.container(horizontal=True, wrap=False):
+        if st.button("🔄 Refresh Stamps", use_container_width=True):
+            try:
+                res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
+                if res_refresh.data:
+                    st.session_state.cust_data = res_refresh.data[0]
+                    st.toast("🔄 Stamps refreshed successfully!", icon="✨")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error refreshing: {e}")
+                
+        if st.button("🚪 Log Out", use_container_width=True):
+            st.session_state.cust_logged_in = False
+            st.session_state.cust_mobile = ""
+            st.session_state.cust_data = None
+            st.session_state.show_qr_modal = False
+            st.rerun()
+
+    st.stop()
+
+# --- 2. FIRST-TIME PASSWORD SETUP ---
+if st.session_state.cust_first_login_setup:
+    st.warning("🔒 First-time login detected. Please set up your secure password.")
+    with st.form("setup_pwd_form"):
+        new_pwd = st.text_input("Create New Password", type="password")
+        confirm_pwd = st.text_input("Confirm New Password", type="password")
+        setup_btn = st.form_submit_button("Save Password & View Card", use_container_width=True)
+        
+        if setup_btn:
+            if not new_pwd.strip():
+                st.error("Password cannot be empty.")
+            elif new_pwd != confirm_pwd:
+                st.error("Passwords do not match.")
+            else:
+                try:
+                    hashed = ph.hash(new_pwd)
+                    supabase.table("loyalty_cards").update({
+                        "password_hash": hashed,
+                        "updated_at": datetime.utcnow().isoformat()
+                    }).eq("mobile_number", st.session_state.cust_mobile).execute()
+                    
+                    res = supabase.table("loyalty_cards").select("*").eq("mobile_number", st.session_state.cust_mobile).execute()
+                    st.session_state.cust_data = res.data[0]
+                    st.session_state.cust_logged_in = True
+                    st.session_state.cust_first_login_setup = False
+                    st.toast("✅ Password saved successfully!", icon="🎉")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error setting password: {e}")
+    st.stop()
+
+# --- 3. LOGIN & SELF-REGISTRATION TABS ---
+tab_login, tab_register = st.tabs(["🔑 Customer Login", "📝 Register New Card"])
+
+with tab_login:
+    st.subheader("View Your Stamp Card")
+    with st.form("cust_login_form"):
+        login_mobile = st.text_input("Mobile Number", placeholder="e.g., 555-0200")
+        login_password = st.text_input("Password", type="password", placeholder="Enter your password")
+        login_btn = st.form_submit_button("Log In", use_container_width=True)
+        
+        if login_btn:
+            if not login_mobile.strip() or not login_password.strip():
+                st.error("Please enter both mobile number and password.")
+            else:
+                try:
+                    res = supabase.table("loyalty_cards").select("*").eq("mobile_number", login_mobile.strip()).execute()
+                    if not res.data:
+                        st.error("No account found with this mobile number.")
+                    else:
+                        cust = res.data[0]
+                        stored_hash = cust.get("password_hash")
+                        
+                        if not stored_hash:
+                            st.session_state.cust_mobile = login_mobile.strip()
+                            st.session_state.cust_first_login_setup = True
+                            st.rerun()
+                        else:
+                            try:
+                                ph.verify(stored_hash, login_password)
+                                st.session_state.cust_logged_in = True
+                                st.session_state.cust_data = cust
+                                st.session_state.cust_mobile = cust["mobile_number"]
+                                st.toast("✅ Login successful!", icon="🎉")
+                                st.rerun()
+                            except VerifyMismatchError:
+                                st.error("❌ Incorrect password.")
+                except Exception as e:
+                    st.error(f"Login error: {e}")
+
+with tab_register:
+    st.subheader("Register a New Loyalty Card")
+    with st.form("cust_reg_form", clear_on_submit=True):
+        reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
+        reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
+        reg_password = st.text_input("Create Password * (Required)", type="password", placeholder="Choose a secure password")
+        reg_email = st.text_input("Email (Optional)", placeholder="e.g., jane@hotmail.com")
+        reg_receive_ads = st.checkbox("Receive promotional emails & special offer ads", value=True)
+        
+        reg_btn = st.form_submit_button("Register Account", use_container_width=True)
+        
+        if reg_btn:
+            if not reg_mobile.strip() or not reg_password.strip() or not reg_name.strip():
+                st.error("Mobile number, name, and password are required.")
+            else:
+                try:
+                    check_res = supabase.table("loyalty_cards").select("mobile_number").eq("mobile_number", reg_mobile.strip()).execute()
+                    if check_res.data:
+                        st.error("An account with this mobile number already exists. Please log in instead.")
+                    else:
+                        now_str = datetime.utcnow().isoformat()
+                        encrypted_pwd = ph.hash(reg_password)
+                        
+                        new_cust_payload = {
+                            "mobile_number": reg_mobile.strip(),
+                            "name": reg_name.strip(),
+                            "password_hash": encrypted_pwd,
+                            "email": reg_email.strip().lower() if reg_email else None,
+                            "receive_ads": reg_receive_ads,
+                            "stamps": 0,
+                            "free_cups": 0,
+                            "free_cup_expiries": [],
+                            "created_at": now_str,
+                            "last_visit": now_str,
+                            "updated_at": now_str
+                        }
+                        
+                        supabase.table("loyalty_cards").insert(new_cust_payload).execute()
+                        st.toast("🎉 Account created successfully! Please log in.", icon="✅")
+                except Exception as e:
+                    st.error(f"Error registering account: {e}")
