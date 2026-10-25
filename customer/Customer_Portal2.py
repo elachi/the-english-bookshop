@@ -5,6 +5,7 @@ from datetime import datetime
 from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+import os
 import re
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
@@ -75,8 +76,7 @@ def generate_qr_code(data_string):
 # Helper function to clean and validate Swedish mobile numbers (ignores spaces, hyphens, etc.)
 def clean_swedish_mobile(mobile_input: str) -> str:
     # Remove all non-digit characters (spaces, dashes, parentheses, etc.)
-    digits = re.sub(r'\D', '', mobile_input)
-    return digits
+    return re.sub(r'\D', '', mobile_input)
 
 def validate_swedish_mobile(digits: str) -> bool:
     # Must start with 07 and be exactly 10 digits
@@ -106,8 +106,6 @@ if "cust_mobile" not in st.session_state:
     st.session_state.cust_mobile = ""
 if "cust_data" not in st.session_state:
     st.session_state.cust_data = None
-if "cust_first_login_setup" not in st.session_state:
-    st.session_state.cust_first_login_setup = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
 st.subheader("Your Loyalty Stamp Card")
@@ -247,22 +245,14 @@ else:
                         st.error("Database connection missing.")
                     else:
                         try:
-                            # Check if mobile already exists
                             check_existing = supabase.table("loyalty_cards").select("id").eq("mobile_number", cleaned_reg_mobile).execute()
                             if check_existing.data:
                                 st.error("❌ An account with this mobile number already exists.")
                             else:
-                                # 1. Calculate the next order sequence number (No. 1, 2, 3...)
-                                seq_res = supabase.table("loyalty_cards").select("sequence_number").order("sequence_number", desc=True).limit(1).execute()
-                                next_seq = 1
-                                if seq_res.data and seq_res.data[0].get("sequence_number") is not None:
-                                    next_seq = seq_res.data[0]["sequence_number"] + 1
-
                                 now_str = datetime.utcnow().isoformat()
                                 encrypted_pwd = ph.hash(reg_pass)
 
                                 supabase.table("loyalty_cards").insert({
-                                    "sequence_number": next_seq,
                                     "mobile_number": cleaned_reg_mobile,
                                     "name": reg_name.strip(),
                                     "password_hash": encrypted_pwd,
@@ -276,7 +266,7 @@ else:
                                     "updated_at": now_str
                                 }).execute()
 
-                                st.success(f"✅ Successfully registered! Member #{next_seq} created.")
+                                st.success(f"✅ Successfully registered member! ({cleaned_reg_mobile})")
                                 st.toast("Account created successfully!", icon="🎉")
                         except Exception as e:
                             st.error(f"Registration error: {e}")
