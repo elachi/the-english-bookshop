@@ -26,11 +26,11 @@ st.markdown("""
     /* Modern Loyalty Card Styling */
     .loyalty-card {
         background: linear-gradient(135deg, #307041 0%, #204d2b 100%);
-        padding: 24px;
+        padding: 20px;
         border-radius: 16px;
         color: white !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
+        margin-bottom: 12px;
     }
     .loyalty-card * {
         color: white !important;
@@ -101,58 +101,71 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: DIGITAL CARD & REWARDS ---
     with tab_stamps:
-        # Modern Digital Card UI (Inspired by Option 2 reference design)
-        st.markdown(
-            f"""
-            <div class="loyalty-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span style="font-size: 14px; font-weight: 700; letter-spacing: 1px;">THE ENGLISH BOOKSHOP</span>
-                </div>
-                <div style="font-size: 13px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Book Purchases</div>
-                <div style="font-size: 38px; font-weight: 800; margin: 5px 0;">{current_stamps} / 9 <span style="font-size: 20px; font-weight: 400;">Books</span></div>
-                <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">📖 Keep reading to unlock your bookstore discount!</div>
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
-
-        # QR Code Expandable Section / Toggle Button
+        # QR Code Expandable Toggle Button
         if st.button("📱 Show Member QR Code", use_container_width=True):
             st.session_state.show_qr_modal = not st.session_state.show_qr_modal
 
         if st.session_state.show_qr_modal:
             st.info("Scan this code at the counter to update your stamps:")
             qr_bytes = generate_qr_code(customer_mobile)
-            st.image(qr_bytes, width=200)
+            st.image(qr_bytes, width=180)
             st.caption(f"Member ID / Mobile: {customer_mobile}")
 
-        st.divider()
+        # Calculate remaining stamps until next discount (assuming target is 9)
+        stamps_left = max(0, 9 - (current_stamps % 9))
+        if stamps_left == 0 and current_stamps > 0:
+            stamps_left = 9
 
-        st.divider()
-
-        # --- SINGLE DISCOUNT SLOT (Dynamic Color Style) ---
-        st.markdown("### 🏷️ Earned Reward Discount")
+        # --- HTML COMPONENTS FOR REWARDS & STAMPS ---
         
-        # Check if discount is unlocked (discounts > 0)
+        # 1. Discount HTML (Ready/Unlocked)
         has_discount = discounts > 0
-        disc_bg = "background: #f2f8f3; border: 1px solid #307041;" if has_discount else "background: #fafafa; border: 1px solid #d5ddd7;"
-        disc_text_color = "#307041" if has_discount else "#78947c"
-        disc_emoji = "🎟️" if has_discount else "⚪"
-        
         disc_card_html = f"""
-        <div style="{disc_bg} border-radius: 12px; padding: 12px; text-align: center; max-width: 300px; margin: 0 auto;">
-            <div style="font-size: 28px; line-height: 1.2;">{disc_emoji}</div>
-            <div style="font-size: 12px; color: {disc_text_color}; margin-top: 4px; font-weight: 700;">
-                {"1x Bookstore Discount Unlocked!" if has_discount else "Discount Reward Locked"}
+        <div style="background: #f2f8f3; border: 1px solid #307041; border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 24px; line-height: 1.1;">🎟️</div>
+            <div style="font-size: 12px; color: #307041; margin-top: 2px; font-weight: 700;">
+                1x Bookstore Discount Unlocked! 🎉
             </div>
-            <div style="font-size: 10px; color: {disc_text_color}; opacity: 0.8; margin-top: 2px;">
-                {f"Expires on: {discount_expiries[0][:10]}" if has_discount and discount_expiries else "Complete 9 purchases to unlock"}
+            <div style="font-size: 10px; color: #307041; opacity: 0.8; margin-top: 2px;">
+                {f"Expires on: {discount_expiries[0][:10]}" if discount_expiries else "Ready to use at counter"}
             </div>
         </div>
         """
-        st.markdown(disc_card_html, unsafe_allow_html=True)
 
-        
+        # 2. Stamps Card HTML
+        stamps_card_html = f"""
+        <div class="loyalty-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 13px; font-weight: 700; letter-spacing: 1px;">THE ENGLISH BOOKSHOP</span>
+            </div>
+            <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Book Purchases</div>
+            <div style="font-size: 34px; font-weight: 800; margin: 2px 0;">{current_stamps} / 9 <span style="font-size: 18px; font-weight: 400;">Books</span></div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📖 Keep reading to unlock your bookstore discount!</div>
+        </div>
+        """
+
+        # 3. Discount HTML (Locked / Underneath)
+        locked_disc_html = f"""
+        <div style="background: #fafafa; border: 1px dashed #d5ddd7; border-radius: 12px; padding: 12px; text-align: center; margin-top: 4px;">
+            <div style="font-size: 20px; line-height: 1.1;">🔒</div>
+            <div style="font-size: 12px; color: #78947c; margin-top: 2px; font-weight: 700;">
+                Discount Reward Locked
+            </div>
+            <div style="font-size: 11px; color: #78947c; margin-top: 2px;">
+                Only <b>{stamps_left} more book{"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
+            </div>
+        </div>
+        """
+
+        # --- CONDITIONAL LAYOUT ORDER ---
+        if has_discount:
+            # If discount is ready, place it ON TOP of the stamps card
+            st.markdown(disc_card_html, unsafe_allow_html=True)
+            st.markdown(stamps_card_html, unsafe_allow_html=True)
+        else:
+            # If not earned yet, place stamps card first, then the locked message underneath
+            st.markdown(stamps_card_html, unsafe_allow_html=True)
+            st.markdown(locked_disc_html, unsafe_allow_html=True)
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
@@ -212,8 +225,6 @@ if st.session_state.cust_logged_in:
                 except Exception as update_err:
                     st.error(f"Error updating profile: {update_err}")
 
-    st.divider()
-    
     # --- REFRESH & LOG OUT BUTTONS ---
     with st.container(horizontal=True, wrap=False):
         if st.button("🔄 Refresh Stamps", use_container_width=True):
