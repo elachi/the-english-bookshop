@@ -82,7 +82,7 @@ if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
-st.title("📚 My Bookstore Card (V2)")
+st.subheader("Your loyalty stamp Card")
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
 if st.session_state.cust_logged_in:
@@ -141,7 +141,7 @@ if st.session_state.cust_logged_in:
                 Discount Reward Locked
             </div>
             <div style="font-size: 11px; color: #78947c; margin-top: 2px;">
-                Only <b>{stamps_left} more book{"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
+                Only <b>{stamps_left} more book 📚{"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
             </div>
         </div>
         """
