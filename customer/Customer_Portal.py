@@ -51,7 +51,7 @@ if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
-st.title("📚 My Bookstore Loyalty Card")
+st.title("📚 My Bookstore Card")
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD (TWO TABS) ---
 if st.session_state.cust_logged_in:
@@ -68,7 +68,7 @@ if st.session_state.cust_logged_in:
 
     # --- TAB 1: STAMPS & DISCOUNTS (Using horizontal containers) ---
     with tab_stamps:
-        st.markdown("### 🏷️ Earned Discounts (Up to 2)")
+        st.markdown("### 🏷️ Earned Discounts")
         
         # Horizontal container for the two discounts (side-by-side, no wrap)
         with st.container(horizontal=True, wrap=False):
