@@ -11,22 +11,15 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
+# 2. INJECT CUSTOM CSS TO HIDE MENUS & FOOTER
 st.markdown("""
     <style>
-        /* Hides the top-right hamburger menu and Deploy button */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
-        
-        /* Hides the default "Made with Streamlit" footer */
         footer {visibility: hidden;}
-        
-        /* Optional: Shifts the main content up slightly */
         .block-container {
             padding-top: 2rem;
         }
-
-        /* Apply forest green color across text elements */
         h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
             color: #307041 !important;
         }
@@ -60,6 +53,10 @@ if not supabase:
     st.error("Database connection missing.")
     st.stop()
 
+# Session state initialization for directory pagination
+if "dir_limit" not in st.session_state:
+    st.session_state.dir_limit = 20
+
 try:
     res = supabase.table("loyalty_cards").select("*").execute()
     data = res.data
@@ -70,10 +67,10 @@ try:
         # Ensure date columns are parsed correctly
         if "created_at" in df.columns:
             df["created_at_dt"] = pd.to_datetime(df["created_at"], errors='coerce')
-        if "last_stamp_at" in df.columns:
-            df["last_stamp_at_dt"] = pd.to_datetime(df["last_stamp_at"], errors='coerce')
+        if "last_visit" in df.columns:
+            df["last_visit_dt"] = pd.to_datetime(df["last_visit"], errors='coerce')
         else:
-            df["last_stamp_at_dt"] = df["created_at_dt"]
+            df["last_visit_dt"] = df["created_at_dt"]
 
         # Summary Metrics
         col1, col2, col3 = st.columns(3)
@@ -88,29 +85,28 @@ try:
 
         st.subheader("🌟 Regular Customer Leaderboards")
         
-        # Display limit selector
-        top_limit = st.selectbox("Show Top:", [5, 10, 20], index=0, key="leaderboard_limit")
+        top_limit = st.selectbox("Show Top Leaderboard Size:", [5, 10, 20], index=0, key="leaderboard_limit")
 
         if not regulars.empty:
-            now = pd.Timestamp.now(tz=timezone.utc) if regulars["created_at_dt"].dt.tz is not None else pd.Timestamp.now()
+            now = pd.Timestamp.now()
             
             # 1. THIS MONTH REGULARS
             st.markdown("### 📅 Top Regulars This Month")
-            current_month_start = pd.Timestamp(now.year, now.month, 1, tz=now.tz if hasattr(now, 'tz') and now.tz else None)
-            df_month = regulars[regulars["last_stamp_at_dt"] >= current_month_start].sort_values(by="stamps", ascending=False)
+            current_month_start = pd.Timestamp(now.year, now.month, 1)
+            df_month = regulars[regulars["last_visit_dt"] >= current_month_start].sort_values(by="stamps", ascending=False)
             
             if not df_month.empty:
-                st.dataframe(df_month[["name", "mobile_number", "email", "stamps", "free_cups", "last_stamp_at"]].head(top_limit), use_container_width=True)
+                st.dataframe(df_month[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
             else:
                 st.info("No regular customer activity recorded this month yet.")
 
             # 2. LAST 3 MONTHS REGULARS
             st.markdown("### 🗓️ Top Regulars (Last 3 Months)")
             three_months_ago = current_month_start - pd.DateOffset(months=3)
-            df_3months = regulars[regulars["last_stamp_at_dt"] >= three_months_ago].sort_values(by="stamps", ascending=False)
+            df_3months = regulars[regulars["last_visit_dt"] >= three_months_ago].sort_values(by="stamps", ascending=False)
             
             if not df_3months.empty:
-                st.dataframe(df_3months[["name", "mobile_number", "email", "stamps", "free_cups", "last_stamp_at"]].head(top_limit), use_container_width=True)
+                st.dataframe(df_3months[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
             else:
                 st.info("No regular customer activity recorded in the last 3 months.")
 
@@ -124,7 +120,7 @@ try:
             
         st.divider()
         
-        # Full Member Directory (Sorted by latest registered, restricted columns)
+        # --- FULL MEMBER DIRECTORY ---
         st.subheader("📁 Full Member Directory & Export")
         
         if "created_at_dt" in df.columns:
@@ -132,13 +128,25 @@ try:
         else:
             df_sorted = df
 
-        # Restrict visible columns to name, mobile_number, email, created_at
+        # Restrict visible columns strictly to: Name, Mobile, Email, Registration Date (No sequence number!)
         directory_columns = ["name", "mobile_number", "email", "created_at"]
         available_dir_cols = [col for col in directory_columns if col in df_sorted.columns]
         
-        st.dataframe(df_sorted[available_dir_cols], use_container_width=True)
+        # Slice dataframe based on pagination limit (default 20)
+        current_limit = st.session_state.dir_limit
+        df_subset = df_sorted.head(current_limit)
         
-        # CSV Export (Exports full data set for backup/admin purposes)
+        st.dataframe(df_subset[available_dir_cols], use_container_width=True)
+        
+        # Load More Button
+        if current_limit < len(df_sorted):
+            if st.button("🔽 Load More Members (+20)", use_container_width=True):
+                st.session_state.dir_limit += 20
+                st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # CSV Export (Exports full data set)
         csv_data = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Export Full Member Directory to CSV",

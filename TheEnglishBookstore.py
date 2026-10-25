@@ -10,7 +10,7 @@ import os
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
     page_title="Cafe Loyalty Program", 
-    page_icon="☕", 
+    page_icon="📚", 
     layout="centered"
 )
 
