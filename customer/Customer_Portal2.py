@@ -227,6 +227,7 @@ if st.session_state.cust_logged_in:
                     st.error(f"Error updating profile: {update_err}")
 
     # --- REFRESH & LOG OUT BUTTONS ---
+    st.divider()
     with st.container(horizontal=True, wrap=False):
         if st.button("🔄 Refresh Stamps", use_container_width=True):
             try:
