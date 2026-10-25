@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
@@ -64,11 +64,11 @@ try:
     if data:
         df = pd.DataFrame(data)
         
-        # Ensure date columns are parsed correctly
+        # Parse and make timezone-naive to prevent comparison errors
         if "created_at" in df.columns:
-            df["created_at_dt"] = pd.to_datetime(df["created_at"], errors='coerce')
+            df["created_at_dt"] = pd.to_datetime(df["created_at"], errors='coerce').dt.tz_localize(None)
         if "last_visit" in df.columns:
-            df["last_visit_dt"] = pd.to_datetime(df["last_visit"], errors='coerce')
+            df["last_visit_dt"] = pd.to_datetime(df["last_visit"], errors='coerce').dt.tz_localize(None)
         else:
             df["last_visit_dt"] = df["created_at_dt"]
 
