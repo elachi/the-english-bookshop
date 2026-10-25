@@ -312,7 +312,7 @@ tab_login, tab_register = st.tabs(["🔑 Customer Login", "📝 Register New Car
 with tab_login:
     st.subheader("View Your Stamp Card")
     with st.form("cust_login_form"):
-        login_mobile = st.text_input("Mobile Number", placeholder="e.g., 555-0200")
+        login_mobile = st.text_input("Mobile Number", placeholder="e.g., 071-234 56 78")
         login_password = st.text_input("Password", type="password", placeholder="Enter your password")
         login_btn = st.form_submit_button("Log In", use_container_width=True)
         
@@ -349,7 +349,7 @@ with tab_login:
 with tab_register:
     st.subheader("Register a New Loyalty Card")
     with st.form("cust_reg_form", clear_on_submit=True):
-        reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
+        reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 071-234 56 78")
         reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
         reg_password = st.text_input("Create Password * (Required)", type="password", placeholder="Choose a secure password")
         reg_email = st.text_input("Email (Optional)", placeholder="e.g., jane@hotmail.com")
