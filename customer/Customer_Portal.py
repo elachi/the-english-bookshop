@@ -51,7 +51,7 @@ if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
 st.image("Logo_EnglishBookshop_logo.png", width=120)
-st.title("Bookstore Card")
+st.subheader("Loyalty card")
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD (TWO TABS) ---
 if st.session_state.cust_logged_in:
