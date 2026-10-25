@@ -141,7 +141,7 @@ if st.session_state.cust_logged_in:
                 Discount Reward Locked
             </div>
             <div style="font-size: 11px; color: #78947c; margin-top: 2px;">
-                Only <b>{stamps_left} more book 📗{"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
+                Only <b>{stamps_left} more book 📗 {"" if stamps_left == 1 else "s"}</b> left to unlock your discount!
             </div>
         </div>
         """
