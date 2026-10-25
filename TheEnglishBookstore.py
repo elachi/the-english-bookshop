@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta
 from supabase import create_client
+import os
 
 
 
@@ -41,11 +42,11 @@ st.set_page_config(page_title="The English Bookstore stamp programme", page_icon
 
 # Supabase Connection Setup
 try:
-    SUPABASE_URL = st.secrets["SUPABASE_URL"]
-    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    SUPABASE_URL = st.secrets.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = st.secrets.get("SUPABASE_KEY") or os.environ.get("SUPABASE_KEY")
 except Exception:
-    SUPABASE_URL = ""
-    SUPABASE_KEY = ""
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 @st.cache_resource
 def init_supabase():
