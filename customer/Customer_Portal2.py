@@ -128,24 +128,31 @@ if st.session_state.cust_logged_in:
 
         st.divider()
 
-        # --- SINGLE DISCOUNT SLOT SECTION ---
+        st.divider()
+
+        # --- SINGLE DISCOUNT SLOT (Dynamic Color Style) ---
         st.markdown("### 🏷️ Earned Reward Discount")
         
-        disc_col1, disc_col2 = st.columns([1, 3])
-        with disc_col1:
-            if discounts > 0:
-                st.image("discount.png", width=50)
-            else:
-                st.image("discountE.png", width=50)
-                
-        with disc_col2:
-            if discounts > 0:
-                exp_str = discount_expiries[0][:10] if len(discount_expiries) > 0 else "N/A"
-                st.markdown(f"**Status: Unlocked! 🎉**")
-                st.caption(f"1x Bookstore Discount Available. Expires on: {exp_str}")
-            else:
-                st.markdown("**Status: Locked 🔒**")
-                st.caption("Complete 9 book purchases to unlock your discount reward.")
+        # Check if discount is unlocked (discounts > 0)
+        has_discount = discounts > 0
+        disc_bg = "background: #f2f8f3; border: 1px solid #307041;" if has_discount else "background: #fafafa; border: 1px solid #d5ddd7;"
+        disc_text_color = "#307041" if has_discount else "#78947c"
+        disc_emoji = "🎟️" if has_discount else "⚪"
+        
+        disc_card_html = f"""
+        <div style="{disc_bg} border-radius: 12px; padding: 12px; text-align: center; max-width: 300px; margin: 0 auto;">
+            <div style="font-size: 28px; line-height: 1.2;">{disc_emoji}</div>
+            <div style="font-size: 12px; color: {disc_text_color}; margin-top: 4px; font-weight: 700;">
+                {"1x Bookstore Discount Unlocked!" if has_discount else "Discount Reward Locked"}
+            </div>
+            <div style="font-size: 10px; color: {disc_text_color}; opacity: 0.8; margin-top: 2px;">
+                {f"Expires on: {discount_expiries[0][:10]}" if has_discount and discount_expiries else "Complete 9 purchases to unlock"}
+            </div>
+        </div>
+        """
+        st.markdown(disc_card_html, unsafe_allow_html=True)
+
+        
 
     # --- TAB 2: PROFILE EDITOR ---
     with tab_profile:
