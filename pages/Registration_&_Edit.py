@@ -9,8 +9,8 @@ from argon2 import PasswordHasher
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Café Tärnan Loyalty Program - Reports", 
-    page_icon="📚", 
+    page_title="Café Tärnan Loyalty Program", 
+    page_icon="☕", 
     layout="centered"
 )
 
