@@ -163,7 +163,7 @@ if search_input:
         
         # Stamp Progress Grid (9 Books)
         st.markdown(f"### Book Purchase Progress ({current_stamps} / 9)")
-        book_emojis = ["☕︎", "⋆☕︎ ˖", "𑣲☕︎", "˙🧋", "☕ྀི", "☕ᝰ.ᐟ", "𖠚｡˚", "✧˖°☕ ༘ ⋆", "🥤"]
+        book_emojis = ["☕︎", "⋆☕︎ ˖", "𑣲☕︎", "˙˗ˏˋ☕ˎˊ˗", "☕ྀི", "☕ᝰ.ᐟ", "𖠚｡˚", "✧˖°☕ ༘ ⋆", "🥤"]
         cols = st.columns(3) + st.columns(3) + st.columns(3)
         for i in range(9):
             with cols[i]:
