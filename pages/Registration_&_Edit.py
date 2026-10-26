@@ -9,7 +9,7 @@ from argon2 import PasswordHasher
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Cafe Loyalty Program", 
+    page_title="Café Tärnan Loyalty Program", 
     page_icon="☕", 
     layout="centered"
 )
@@ -41,7 +41,7 @@ if not st.session_state.get("logged_in", False):
 
 supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
-st.title("📝 New Members & Profile Editor")
+st.title("Tärnan New Members & Profile Editor")
 
 # --- ARGON2ID PASSWORD HASHER ---
 ph = PasswordHasher()

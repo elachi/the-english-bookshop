@@ -6,7 +6,7 @@ from datetime import datetime
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="The English Bookstore - Reports", 
+    page_title="Café Tärnan Loyalty Program - Reports", 
     page_icon="📚", 
     layout="centered"
 )
@@ -47,7 +47,7 @@ def init_supabase():
 supabase = init_supabase()
 
 st.image("Logo_EnglishBookshop_logo.png", width=150)
-st.title("📊 Bookstore Reports & Analytics")
+st.title("Tärnan Reports & Analytics")
 
 if not supabase:
     st.error("Database connection missing.")
