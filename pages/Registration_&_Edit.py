@@ -41,6 +41,7 @@ if not st.session_state.get("logged_in", False):
 
 supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
+st.image("cafetarnan.jpg", width=150)
 st.title("Tärnan New Members & Profile Editor")
 
 # --- ARGON2ID PASSWORD HASHER ---

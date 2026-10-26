@@ -46,7 +46,7 @@ def init_supabase():
 
 supabase = init_supabase()
 
-st.image("Logo_EnglishBookshop_logo.png", width=150)
+st.image("cafetarnan.jpg", width=150)
 st.title("Tärnan Reports & Analytics")
 
 if not supabase:
