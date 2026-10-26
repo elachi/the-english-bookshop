@@ -9,7 +9,7 @@ import os
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Café Loyalty Program", 
+    page_title="Café Tärnan Loyalty Program", 
     page_icon="☕", 
     layout="centered"
 )
@@ -37,7 +37,7 @@ st.markdown("""
 
 
 
-st.set_page_config(page_title="Café Tärnan", page_icon="📚")
+st.set_page_config(page_title="Café Tärnan", page_icon="☕")
 #, layout="wide"
 
 # Supabase Connection Setup
@@ -76,7 +76,7 @@ def clear_scanner():
 if not st.session_state.logged_in:
     st.image("cafetarnan.jpg", width=150)
 
-    st.title("📚 The stamp loyality programme")
+    st.title("☕ Tärnan Loyalty programme")
     with st.form("login_form"):
         username_input = st.text_input("Username")
         password_input = st.text_input("Password", type="password")
