@@ -14,19 +14,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. INJECT CUSTOM CSS TO HIDE MENUS & FOOTER
-st.markdown("""
-    <style>
-        #MainMenu {visibility: hidden;}
-        header {visibility: hidden;}
-        footer {visibility: hidden;}
-        .block-container {
-            padding-top: 2rem;
-        }
-        h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
-            color: #307041 !important;
-        }
-    </style>
 
 # 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
 st.markdown("""
