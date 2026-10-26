@@ -9,8 +9,8 @@ import os
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Cafe Loyalty Program", 
-    page_icon="📚", 
+    page_title="Café Loyalty Program", 
+    page_icon="☕", 
     layout="centered"
 )
 
@@ -37,7 +37,7 @@ st.markdown("""
 
 
 
-st.set_page_config(page_title="The English Bookstore stamp programme", page_icon="📚")
+st.set_page_config(page_title="Café Tärnan", page_icon="📚")
 #, layout="wide"
 
 # Supabase Connection Setup
@@ -147,7 +147,7 @@ if search_input:
         st.subheader(f"Member: {customer_name} (Mobile: {customer_mobile})")
 
         # --- EARNED BOOKSTORE DISCOUNTS BANK (Up to 2) ---
-        st.markdown("### 🏷️ Earned Bookstore Discounts (Bank: Up to 2)")
+        st.markdown("### 🏷️ Free Coffee Cup (Bank: Up to 2)")
         gift_cols = st.columns(2)
         for g in range(2):
             with gift_cols[g]:
@@ -163,7 +163,7 @@ if search_input:
         
         # Stamp Progress Grid (9 Books)
         st.markdown(f"### Book Purchase Progress ({current_stamps} / 9)")
-        book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
+        book_emojis = ["☕", "🍵", "🥤", "☕", "🍵", "🥤", "☕", "🍵", "🧋"]
         cols = st.columns(3) + st.columns(3) + st.columns(3)
         for i in range(9):
             with cols[i]:
