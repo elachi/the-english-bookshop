@@ -109,7 +109,7 @@ if "cust_data" not in st.session_state:
 if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
-st.image("Logo_EnglishBookshop_logo.png", width=120)
+st.image("cafetarnan.png", width=120)
 st.subheader("Your loyalty stamp Card")
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
