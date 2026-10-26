@@ -155,7 +155,7 @@ if st.session_state.cust_logged_in:
             </div>
             <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Coffee Purchases</div>
             <div style="font-size: 34px; font-weight: 800; margin: 2px 0;">{current_stamps} / 9 <span style="font-size: 18px; font-weight: 400;">Coffee ☕</span></div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">Sharpen your focus with a good coffee to unlock your free coffee cup!</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">Sharpen your focus with a good cup of coffee and unlock your free coffee cup soon!</div>
         </div>
         """
     
