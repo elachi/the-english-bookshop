@@ -74,7 +74,7 @@ def clear_scanner():
 
 # --- AUTHENTICATION GATE ---
 if not st.session_state.logged_in:
-    st.image("Logo_EnglishBookshop_logo.png", width=150)
+    st.image("cafetarnan.png", width=150)
 
     st.title("📚 The stamp loyality programme")
     with st.form("login_form"):
