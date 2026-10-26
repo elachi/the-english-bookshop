@@ -137,7 +137,7 @@ if st.session_state.cust_logged_in:
         has_discount = discounts > 0
         disc_card_html = f"""
         <div style="background: #f2f8f3; border: 1px solid #307041; border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 12px;">
-            <div style="font-size: 24px; line-height: 1.1;">🎟️</div>
+            <div style="font-size: 24px; line-height: 1.1;">𑣲☕︎</div>
             <div style="font-size: 12px; color: #307041; margin-top: 2px; font-weight: 700;">
                 1x Free Coffee Cup Unlocked! 🎉
             </div>
@@ -155,7 +155,7 @@ if st.session_state.cust_logged_in:
             </div>
             <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Coffee Purchases</div>
             <div style="font-size: 34px; font-weight: 800; margin: 2px 0;">{current_stamps} / 9 <span style="font-size: 18px; font-weight: 400;">Coffee ☕</span></div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📖 Keep reading to unlock your free coffee cup!</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">Sharpen your focus with a good coffee to unlock your free coffee cup!</div>
         </div>
         """
     
