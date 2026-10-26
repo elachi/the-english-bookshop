@@ -158,6 +158,7 @@ if st.session_state.cust_logged_in:
             <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📖 Keep reading to unlock your free coffee cup!</div>
         </div>
         """
+    
 
         # 3. Discount HTML (Locked / Underneath)
         locked_disc_html = f"""
