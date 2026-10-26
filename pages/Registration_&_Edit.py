@@ -15,19 +15,16 @@ st.set_page_config(
 )
 
 
-# 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
 st.markdown("""
     <style>
-        /* Hides the top-right hamburger menu and Deploy button */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
-        
-        /* Hides the default "Made with Streamlit" footer */
         footer {visibility: hidden;}
-        
-        /* Optional: Shifts the main content up slightly so there isn't a blank gap at the top */
         .block-container {
             padding-top: 2rem;
+        }
+        h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+            color: #307041 !important;
         }
     </style>
 """, unsafe_allow_html=True)
