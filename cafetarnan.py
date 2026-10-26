@@ -152,10 +152,10 @@ if search_input:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
                     st.image("coffee-cup.png", width=35)
-                    st.caption(f"Discount #{g+1} (Ready! Exp: {exp_str})")
+                    st.caption(f"Free Cup of Coffee #{g+1} (Ready! Exp: {exp_str})")
                 else:
                     st.image("coffee-cup-1.png", width=35)
-                    st.caption(f"Discount #{g+1} (Locked)")
+                    st.caption(f"Free Cup of Coffee #{g+1} (Locked)")
 
         st.divider()
         
