@@ -155,7 +155,7 @@ if search_input:
                     st.caption(f"Free Cup of Coffee #{g+1} (Ready! Exp: {exp_str})")
                 else:
                     st.image("coffee-cup-1.png", width=35)
-                    st.caption(f"Free Cup of Coffee #{g+1} (Locked)")
+                    st.caption(f"Free Cup of Coffee #{g+1} (**Locked**)")
 
         st.divider()
         
