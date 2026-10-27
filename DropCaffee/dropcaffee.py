@@ -3,8 +3,6 @@ from datetime import datetime, timedelta
 from supabase import create_client
 import os
 
-
-
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
     page_title="Drop Caffee Loyalty Program", 
@@ -26,15 +24,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-
-
-
-
-
-
-st.set_page_config(page_title="Drop Caffee", page_icon="☕")
-#, layout="wide"
 
 # Supabase Connection Setup
 try:
@@ -135,12 +124,11 @@ if search_input:
     except Exception as e:
         st.error(f"Database error: {e}")
 
-
-
     if member_found:
         customer_name = data.get("name", "Valued Customer")
         customer_mobile = data["mobile_number"]
         current_stamps = data["stamps"]
+        current_counter = data.get("counter", 0) or 0  # <--- Fetches lifetime counter
         discounts = data.get("free_cups", 0)  # Database column holding banked discounts
         discount_expiries = data.get("free_cup_expiries", []) or []
 
@@ -154,94 +142,41 @@ if search_input:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
                     st.image("coffee-cup.png", width=35)
-                    st.caption(f"Free Cup of Coffee #{g+1} (Ready! Exp: {exp_str})")
                 else:
-                    st.image("coffee-cup-1.png", width=35)
-                    st.caption(f"Free Cup of Coffee #{g+1} (**Locked**)")
+                    st.info(f"Cup #{g+1} Locked")
 
-        st.divider()
+        # --- ADD STAMP BUTTON & LIFETIME COUNTER LOGIC ---
+        if st.button("➕ Add Stamp", use_container_width=True):
+            new_stamps = current_stamps + 1
+            new_counter = current_counter + 1  # <--- Counter increments infinitely and never resets
+            
+            update_data = {
+                "stamps": new_stamps,
+                "counter": new_counter,         # <--- Saved to Supabase counter column
+                "last_stamp_at": datetime.utcnow().isoformat(),
+                "last_visit": datetime.utcnow().isoformat()
+            }
 
-
-
-
-
-        
-        # Stamp Progress Grid (9 Books)
-        st.markdown(f"### Book Purchase Progress ({current_stamps} / 9)")
-        book_emojis = ["✧☕︎", "⋆☕︎ ˖", "𑣲☕︎", "˗ˏˋ☕ˎˊ˗", "˙☕ྀི", "☕ᝰ.ᐟ", "𖠚｡˚", "˖°☕ ༘ ⋆", "🥤"]
-        cols = st.columns(3) + st.columns(3) + st.columns(3)
-        for i in range(9):
-            with cols[i]:
-                if i < current_stamps:
-                    st.markdown(f"### {book_emojis[i]}")
-                    st.caption(f"Book {i+1} (Collected)")
+            # Check if user reached 9 stamps to earn a free coffee cup
+            if new_stamps >= 9:
+                if discounts < 2:
+                    new_stamps = 0  # Reset current card stamps back to 0
+                    update_data["stamps"] = 0
+                    update_data["free_cups"] = discounts + 1
+                    
+                    expiry_date = (datetime.utcnow() + timedelta(days=90)).isoformat()
+                    discount_expiries.append(expiry_date)
+                    update_data["free_cup_expiries"] = discount_expiries
+                    st.success("🎉 Stamp card completed! A free coffee cup has been added to their bank!")
                 else:
-                    st.markdown("### ⚪")
-                    st.caption(f"Book {i+1} (Empty)")
+                    st.warning("⚠️ Customer already has the maximum of 2 banked discounts! Stamps capped at 9.")
+                    update_data["stamps"] = 9
 
-        st.markdown("")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("➕ Add Book Stamp", use_container_width=True):
-                new_stamps = current_stamps + 1
-                new_discounts = discounts
-                new_expiries = list(discount_expiries)
-                now_str = datetime.utcnow().isoformat()
-                
-                if new_stamps >= 9:
-                    if new_discounts < 2:  # Max 2 banked discounts limit
-                        new_discounts += 1
-                        new_stamps = 0
-                        expiry_date = (datetime.utcnow() + timedelta(days=180)).isoformat()
-                        new_expiries.append(expiry_date)
-                        st.success("🎉 Milestone reached! 9 books completed! 1 Bookstore Discount added to bank!")
-                    else:
-                        new_stamps = 9
-                        st.warning("⚠️ Discount bank is full (2 max). Please redeem a discount first!")
-
-                supabase.table("loyalty_cards").update({
-                    "stamps": new_stamps,
-                    "free_cups": new_discounts,
-                    "free_cup_expiries": new_expiries,
-                    "last_stamp_at": now_str,
-                    "last_visit": now_str,
-                    "updated_at": now_str
-                }).eq("mobile_number", customer_mobile).execute()
+            try:
+                supabase.table("loyalty_cards").update(update_data).eq("mobile_number", customer_mobile).execute()
+                st.toast("Stamp added successfully!", icon="☕")
                 st.rerun()
-
-        with col2:
-            if st.button("🎁 Redeem Discount", use_container_width=True):
-                if discounts > 0:
-                    st.session_state.confirm_redeem = True
-                else:
-                    st.warning("No discounts available to redeem yet! Complete 9 book purchases first.")
-
-        # --- REDEMPTION CONFIRMATION POPUP ---
-        if st.session_state.confirm_redeem:
-            st.warning(f"⚠️ **Confirm Redemption**: Apply Bookstore Discount for **{customer_name}**?")
-            c_yes, c_no = st.columns(2)
-            with c_yes:
-                if st.button("✅ Yes, Confirm Redeem", use_container_width=True):
-                    new_discounts = discounts - 1
-                    updated_expiries = discount_expiries[1:] if len(discount_expiries) > 0 else []
-                    now_str = datetime.utcnow().isoformat()
-                    
-                    supabase.table("loyalty_cards").update({
-                        "free_cups": new_discounts,
-                        "free_cup_expiries": updated_expiries,
-                        "last_redeem_at": now_str,
-                        "last_visit": now_str,
-                        "updated_at": now_str
-                    }).eq("mobile_number", customer_mobile).execute()
-                    
-                    st.session_state.confirm_redeem = False
-                    st.balloons()
-                    st.success("🏷️ Bookstore discount applied successfully!")
-                    st.rerun()
-            with c_no:
-                if st.button("❌ Cancel", use_container_width=True):
-                    st.session_state.confirm_redeem = False
-                    st.rerun()
+            except Exception as err:
+                st.error(f"Failed to add stamp: {err}")
     else:
-        st.warning(f"⚠️ Member matching **'{search_input}'** was not found.")
-        st.info("Please navigate to the **Registration & Edit** page to sign up this customer.")
+        st.warning("No customer found matching that mobile number or email.")
