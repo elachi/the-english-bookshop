@@ -136,35 +136,19 @@ if search_input:
 
 
 
-    if member_found:
+
+
+if member_found:
         customer_name = data.get("name", "Valued Customer")
         customer_mobile = data["mobile_number"]
         current_stamps = data["stamps"]
+        current_counter = data.get("counter", 0) or 0  # <--- Fetches lifetime counter
         discounts = data.get("free_cups", 0)  # Database column holding banked discounts
         discount_expiries = data.get("free_cup_expiries", []) or []
 
         st.subheader(f"Member: {customer_name} (Mobile: {customer_mobile})")
+        st.caption(f"Lifetime Stamps Collected: {current_counter} ☕")
 
-        # --- EARNED BOOKSTORE DISCOUNTS BANK (Up to 2) ---
-        st.markdown("### 🏷️ Free Coffee Cup (Bank: Up to 2)")
-        gift_cols = st.columns(2)
-        for g in range(2):
-            with gift_cols[g]:
-                if g < discounts:
-                    exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                    st.image("coffee-cup.png", width=35)
-                    st.caption(f"Free Cup of Coffee #{g+1} (Ready! Exp: {exp_str})")
-                else:
-                    st.image("coffee-cup-1.png", width=35)
-                    st.caption(f"Free Cup of Coffee #{g+1} (**Locked**)")
-
-        st.divider()
-
-
-
-
-
-        
         # Stamp Progress Grid (9 Books)
         st.markdown(f"### Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["✧☕︎", "⋆☕︎ ˖", "𑣲☕︎", "˗ˏˋ☕ˎˊ˗", "˙☕ྀི", "☕ᝰ.ᐟ", "𖠚｡˚", "˖°☕ ༘ ⋆", "🥤"]
@@ -183,6 +167,7 @@ if search_input:
         with col1:
             if st.button("➕ Add Book Stamp", use_container_width=True):
                 new_stamps = current_stamps + 1
+                new_counter = current_counter + 1  # <--- Lifetime counter increments infinitely
                 new_discounts = discounts
                 new_expiries = list(discount_expiries)
                 now_str = datetime.utcnow().isoformat()
@@ -196,10 +181,12 @@ if search_input:
                         st.success("🎉 Milestone reached! 9 books completed! 1 Bookstore Discount added to bank!")
                     else:
                         new_stamps = 9
+                        new_counter = current_counter  # Don't increment lifetime counter if card is capped at 9 and bank is full
                         st.warning("⚠️ Discount bank is full (2 max). Please redeem a discount first!")
 
                 supabase.table("loyalty_cards").update({
                     "stamps": new_stamps,
+                    "counter": new_counter,        # <--- Saved to Supabase lifetime counter column
                     "free_cups": new_discounts,
                     "free_cup_expiries": new_expiries,
                     "last_stamp_at": now_str,
@@ -214,6 +201,7 @@ if search_input:
                     st.session_state.confirm_redeem = True
                 else:
                     st.warning("No discounts available to redeem yet! Complete 9 book purchases first.")
+
 
         # --- REDEMPTION CONFIRMATION POPUP ---
         if st.session_state.confirm_redeem:
