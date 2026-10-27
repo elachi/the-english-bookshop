@@ -32,6 +32,7 @@ st.markdown("""
 
 
 
+
 st.set_page_config(page_title="Drop Caffee Loyalty Card - V2", page_icon="☕", layout="centered")
 
 # --- MOBILE STYLING & DIGITAL CARD THEME ---
