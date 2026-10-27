@@ -175,7 +175,7 @@ if search_input:
         st.markdown("")
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("➕ Add Book Stamp", use_container_width=True):
+            if st.button("➕ Add Coffee Stamp", use_container_width=True):
                 new_stamps = current_stamps + 1
                 new_discounts = discounts
                 new_expiries = list(discount_expiries)
