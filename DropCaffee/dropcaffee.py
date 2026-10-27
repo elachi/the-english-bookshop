@@ -143,63 +143,26 @@ if search_input:
     if member_found:
         customer_name = data.get("name", "Valued Customer")
         customer_mobile = data["mobile_number"]
-        current_stamps = data.get("stamps", 0)
-        current_counter = data.get("counter", 0) or 0  # <--- Fetches lifetime counter
-        discounts = data.get("free_cups", 0)  
+        current_stamps = data["stamps"]
+        discounts = data.get("free_cups", 0)  # Database column holding banked discounts
         discount_expiries = data.get("free_cup_expiries", []) or []
 
         st.subheader(f"Member: {customer_name} (Mobile: {customer_mobile})")
 
-        # --- EARNED FREE COFFEE DISCOUNTS BANK ---
+        # --- EARNED BOOKSTORE DISCOUNTS BANK (Up to 2) ---
         st.markdown("### 🏷️ Free Coffee Cup (Bank: Up to 2)")
         gift_cols = st.columns(2)
         for g in range(2):
             with gift_cols[g]:
                 if g < discounts:
                     exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                    st.success(f"Free Cup #{g+1} Available!")
+                    st.image("coffee-cup.png", width=35)
+                    st.caption(f"Free Cup of Coffee #{g+1} (Ready! Exp: {exp_str})")
                 else:
-                    st.info(f"Cup #{g+1} Locked")
+                    st.image("coffee-cup-1.png", width=35)
+                    st.caption(f"Free Cup of Coffee #{g+1} (**Locked**)")
 
-        st.markdown("---")
-        st.markdown(f"**Current Card Stamps:** {current_stamps} / 9")
-        st.markdown(f"**Lifetime Stamps Collected:** {current_counter} ☕")
-
-        # --- ADD STAMP BUTTON & LIFETIME COUNTER LOGIC ---
-        if st.button("➕ Add Stamp", use_container_width=True):
-            new_stamps = current_stamps + 1
-            new_counter = current_counter + 1  # <--- ALWAYS INCREMENTS AND NEVER RESETS
-            
-            update_data = {
-                "stamps": new_stamps,
-                "counter": new_counter,         # <--- Saved directly to Supabase
-                "last_stamp_at": datetime.utcnow().isoformat(),
-                "last_visit": datetime.utcnow().isoformat()
-            }
-
-            # Check if current card hits 9 stamps
-            if new_stamps >= 9:
-                if discounts < 2:
-                    new_stamps = 0  # Card resets back to 0 for the next card
-                    update_data["stamps"] = 0
-                    update_data["free_cups"] = discounts + 1
-                    
-                    expiry_date = (datetime.utcnow() + timedelta(days=90)).isoformat()
-                    discount_expiries.append(expiry_date)
-                    update_data["free_cup_expiries"] = discount_expiries
-                    st.success("🎉 Card completed! A free coffee cup has been added to their bank!")
-                else:
-                    st.warning("⚠️ Customer has maximum banked free cups (2). Card capped at 9 stamps.")
-                    update_data["stamps"] = 9
-
-            try:
-                supabase.table("loyalty_cards").update(update_data).eq("mobile_number", customer_mobile).execute()
-                st.toast(f"Stamp added! Lifetime total: {new_counter}", icon="☕")
-                st.rerun()
-            except Exception as err:
-                st.error(f"Failed to add stamp: {err}")
-    else:
-        st.warning("No customer found matching that mobile number or email.")
+        st.divider()
 
 
 
