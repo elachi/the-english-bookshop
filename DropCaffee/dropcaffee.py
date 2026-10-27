@@ -180,10 +180,14 @@ if search_input:
                     st.caption(f"Book {i+1} (Empty)")
 
         st.markdown("")
+
+
+        
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("➕ Add Coffee Stamp", use_container_width=True):
+            if st.button("➕ Add Book Stamp", use_container_width=True):
                 new_stamps = current_stamps + 1
+                new_counter = current_counter + 1  # <--- Counter increments infinitely and never resets
                 new_discounts = discounts
                 new_expiries = list(discount_expiries)
                 now_str = datetime.utcnow().isoformat()
@@ -201,6 +205,7 @@ if search_input:
 
                 supabase.table("loyalty_cards").update({
                     "stamps": new_stamps,
+                    "counter": new_counter,             # <--- Saved to Supabase counter column
                     "free_cups": new_discounts,
                     "free_cup_expiries": new_expiries,
                     "last_stamp_at": now_str,
@@ -215,6 +220,8 @@ if search_input:
                     st.session_state.confirm_redeem = True
                 else:
                     st.warning("No discounts available to redeem yet! Complete 9 book purchases first.")
+
+                    
 
 
         # --- REDEMPTION CONFIRMATION POPUP ---
