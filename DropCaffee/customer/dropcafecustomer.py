@@ -25,7 +25,7 @@ st.markdown("""
             padding-top: 2rem;
         }
         h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
-            color: #307041 !important;
+            color: #0f2648 !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -107,7 +107,7 @@ if "cust_data" not in st.session_state:
 if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
-st.image("dropcafe.jpg", width=120)
+st.image("DropCaffee/images/dropcafe.png", width=120)
 st.subheader("Your loyalty stamp Card")
 
 # --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
