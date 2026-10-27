@@ -5,8 +5,6 @@ import os
 
 
 
-
-
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
     page_title="Drop Caffee Loyalty Program", 
@@ -69,6 +67,7 @@ if "confirm_redeem" not in st.session_state:
 def clear_scanner():
     st.session_state.scanner_search = ""
     st.session_state.confirm_redeem = False
+
 
 # --- AUTHENTICATION GATE ---
 if not st.session_state.logged_in:

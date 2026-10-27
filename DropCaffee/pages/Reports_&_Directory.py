@@ -4,6 +4,8 @@ from supabase import create_client
 import os
 from datetime import datetime
 
+
+
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
     page_title="Drop Caffee Loyalty Program - Reports", 
