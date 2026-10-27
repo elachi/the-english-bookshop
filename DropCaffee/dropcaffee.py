@@ -102,7 +102,7 @@ if st.sidebar.button("🚪 Log Out", use_container_width=True):
     st.session_state.logged_in = False
     st.rerun()
 
-
+#
 # --- MAIN SCANNER VIEW ---
 
 st.image("dropcafe.jpg", width=150)
