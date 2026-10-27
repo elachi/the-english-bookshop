@@ -41,14 +41,14 @@ st.markdown("""
 <style>
     /* Apply forest green color across text elements */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
-        color: #307041 !important;
+        color: #0f2648 !important;
     }
 
     /* Enlarge tab text */
     button[data-baseweb="tab"] div p {
         font-size: 1.05rem !important;
         font-weight: 600 !important;
-        color: #307041 !important;
+        color: #0f2648 !important;
     }
 
     /* Modern Loyalty Card Styling */
