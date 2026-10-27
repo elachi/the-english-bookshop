@@ -25,7 +25,7 @@ st.markdown("""
             padding-top: 2rem;
         }
         h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
-            color: #307041 !important;
+            color: #0f2648 !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -40,7 +40,7 @@ if not st.session_state.get("logged_in", False):
 
 supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
-st.image("DropCaffee/images/dropcaffee.jpg", width=150)
+st.image("DropCaffee/images/dropcafe.png", width=150)
 st.title("Drop Caffee New Members & Profile Editor")
 
 # --- ARGON2ID PASSWORD HASHER ---
