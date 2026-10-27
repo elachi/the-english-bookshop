@@ -48,7 +48,7 @@ def init_supabase():
 
 supabase = init_supabase()
 
-st.image("/mount/src/the-english-bookshop/images/dropcaffee.jpg", width=150)
+st.image("DropCaffee/images/dropcaffee.jpg", width=150)
 st.title("Drop Caffee Reports & Analytics")
 
 if not supabase:
