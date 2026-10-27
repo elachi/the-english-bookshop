@@ -1,0 +1,6 @@
+streamlit
+supabase
+argon2-cffi
+pandas
+qrcode[pil]
+Pillow
