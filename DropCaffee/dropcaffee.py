@@ -72,7 +72,7 @@ def clear_scanner():
 
 # --- AUTHENTICATION GATE ---
 if not st.session_state.logged_in:
-    st.image("/dropcafe.jpg", width=150)
+    st.image("dropcafe.jpg", width=150)
 
     st.title("☕ Drop Caffee Loyalty programme")
     with st.form("login_form"):
