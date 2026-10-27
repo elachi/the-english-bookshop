@@ -137,12 +137,10 @@ if search_input:
 
 
 
-
-if member_found:
+    if member_found:
         customer_name = data.get("name", "Valued Customer")
         customer_mobile = data["mobile_number"]
         current_stamps = data["stamps"]
-        current_counter = data.get("counter", 0) or 0  # <--- Fetches lifetime counter
         discounts = data.get("free_cups", 0)  # Database column holding banked discounts
         discount_expiries = data.get("free_cup_expiries", []) or []
 
@@ -163,6 +161,10 @@ if member_found:
 
         st.divider()
 
+
+
+
+        
         # Stamp Progress Grid (9 Books)
         st.markdown(f"### Book Purchase Progress ({current_stamps} / 9)")
         book_emojis = ["✧☕︎", "⋆☕︎ ˖", "𑣲☕︎", "˗ˏˋ☕ˎˊ˗", "˙☕ྀི", "☕ᝰ.ᐟ", "𖠚｡˚", "˖°☕ ༘ ⋆", "🥤"]
@@ -176,14 +178,11 @@ if member_found:
                     st.markdown("### ⚪")
                     st.caption(f"Book {i+1} (Empty)")
 
-        st.markdown(f"**Lifetime Stamps Counter:** {current_counter} ☕")
         st.markdown("")
-
         col1, col2 = st.columns(2)
         with col1:
             if st.button("➕ Add Book Stamp", use_container_width=True):
                 new_stamps = current_stamps + 1
-                new_counter = current_counter + 1  # <--- Counter increments infinitely and never resets
                 new_discounts = discounts
                 new_expiries = list(discount_expiries)
                 now_str = datetime.utcnow().isoformat()
@@ -201,7 +200,6 @@ if member_found:
 
                 supabase.table("loyalty_cards").update({
                     "stamps": new_stamps,
-                    "counter": new_counter,             # <--- Saved to Supabase counter column
                     "free_cups": new_discounts,
                     "free_cup_expiries": new_expiries,
                     "last_stamp_at": now_str,
@@ -247,3 +245,5 @@ if member_found:
     else:
         st.warning(f"⚠️ Member matching **'{search_input}'** was not found.")
         st.info("Please navigate to the **Registration & Edit** page to sign up this customer.")
+
+
