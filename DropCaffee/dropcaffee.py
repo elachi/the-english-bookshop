@@ -244,3 +244,28 @@ if search_input:
     else:
         st.warning(f"⚠️ Member matching **'{search_input}'** was not found.")
         st.info("Please navigate to the **Registration & Edit** page to sign up this customer.")
+
+
+# Check if user reached 9 stamps to earn a free coffee cup
+            if new_stamps >= 9:
+                if discounts < 2:
+                    new_stamps = 0  # Reset current card stamps back to 0
+                    update_data["stamps"] = 0
+                    update_data["free_cups"] = discounts + 1
+                    
+                    expiry_date = (datetime.utcnow() + timedelta(days=90)).isoformat()
+                    discount_expiries.append(expiry_date)
+                    update_data["free_cup_expiries"] = discount_expiries
+                    st.success("🎉 Stamp card completed! A free coffee cup has been added to their bank!")
+                else:
+                    st.warning("⚠️ Customer already has the maximum of 2 banked discounts! Stamps capped at 9.")
+                    update_data["stamps"] = 9
+
+            try:
+                supabase.table("loyalty_cards").update(update_data).eq("mobile_number", customer_mobile).execute()
+                st.toast("Stamp added successfully!", icon="☕")
+                st.rerun()
+            except Exception as err:
+                st.error(f"Failed to add stamp: {err}")
+    else:
+        st.warning("No customer found matching that mobile number or email.")
