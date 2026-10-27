@@ -40,7 +40,7 @@ if not st.session_state.get("logged_in", False):
 
 supabase = create_client(st.secrets["SUPABASE_URL"].strip().rstrip('/'), st.secrets["SUPABASE_KEY"])
 
-st.image("/mount/src/the-english-bookshop/images/dropcafe.jpg", width=150)
+st.image("/mount/src/the-english-bookshop/images/dropcaffee.jpg", width=150)
 st.title("Drop Caffee New Members & Profile Editor")
 
 # --- ARGON2ID PASSWORD HASHER ---
