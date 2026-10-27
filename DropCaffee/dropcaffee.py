@@ -141,6 +141,7 @@ if search_input:
         customer_name = data.get("name", "Valued Customer")
         customer_mobile = data["mobile_number"]
         current_stamps = data["stamps"]
+        current_counter = data.get("counter", 0) or 0  # <--- Fetches lifetime counter
         discounts = data.get("free_cups", 0)  # Database column holding banked discounts
         discount_expiries = data.get("free_cup_expiries", []) or []
 
