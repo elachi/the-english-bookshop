@@ -4,8 +4,6 @@ from supabase import create_client
 import os
 from datetime import datetime
 
-
-
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
     page_title="Drop Caffee Loyalty Program - Reports", 
@@ -66,6 +64,11 @@ try:
     if data:
         df = pd.DataFrame(data)
         
+        # Ensure counter column exists and is numeric
+        if "counter" not in df.columns:
+            df["counter"] = df["stamps"] if "stamps" in df.columns else 0
+        df["counter"] = pd.to_numeric(df["counter"], errors="coerce").fillna(0)
+
         # Parse and make timezone-naive to prevent comparison errors
         if "created_at" in df.columns:
             df["created_at_dt"] = pd.to_datetime(df["created_at"], errors='coerce').dt.tz_localize(None)
@@ -74,16 +77,16 @@ try:
         else:
             df["last_visit_dt"] = df["created_at_dt"]
 
-        # Summary Metrics
+        # Summary Metrics (Total Stamps Logged uses lifetime counter)
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Members", len(df))
-        col2.metric("Total Stamps Logged", int(df["stamps"].sum()) if "stamps" in df.columns else 0)
+        col2.metric("Total Stamps Logged", int(df["counter"].sum()))
         col3.metric("Total Active Discounts", int(df["free_cups"].sum()) if "free_cups" in df.columns else 0)
         
         st.divider()
 
-        # Regular Customers Filter (Members with >= 5 stamps or free cups)
-        regulars = df[(df["stamps"] >= 5) | (df["free_cups"] > 0)].copy() if "stamps" in df.columns and "free_cups" in df.columns else df.copy()
+        # Regular Customers Filter (Members with >= 5 lifetime stamps or free cups)
+        regulars = df[(df["counter"] >= 5) | (df["free_cups"] > 0)].copy() if "free_cups" in df.columns else df.copy()
 
         st.subheader("🌟 Regular Customer Leaderboards")
         
@@ -95,27 +98,27 @@ try:
             # 1. THIS MONTH REGULARS
             st.markdown("### 📅 Top Regulars This Month")
             current_month_start = pd.Timestamp(now.year, now.month, 1)
-            df_month = regulars[regulars["last_visit_dt"] >= current_month_start].sort_values(by="stamps", ascending=False)
+            df_month = regulars[regulars["last_visit_dt"] >= current_month_start].sort_values(by="counter", ascending=False)
             
             if not df_month.empty:
-                st.dataframe(df_month[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
+                st.dataframe(df_month[["name", "mobile_number", "email", "counter", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
             else:
                 st.info("No regular customer activity recorded this month yet.")
 
             # 2. LAST 3 MONTHS REGULARS
             st.markdown("### 🗓️ Top Regulars (Last 3 Months)")
             three_months_ago = current_month_start - pd.DateOffset(months=3)
-            df_3months = regulars[regulars["last_visit_dt"] >= three_months_ago].sort_values(by="stamps", ascending=False)
+            df_3months = regulars[regulars["last_visit_dt"] >= three_months_ago].sort_values(by="counter", ascending=False)
             
             if not df_3months.empty:
-                st.dataframe(df_3months[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
+                st.dataframe(df_3months[["name", "mobile_number", "email", "counter", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
             else:
                 st.info("No regular customer activity recorded in the last 3 months.")
 
             # 3. ALL-TIME REGULARS
             st.markdown("### 🏆 Top Regulars (All-Time)")
-            df_alltime = regulars.sort_values(by="stamps", ascending=False)
-            st.dataframe(df_alltime[["name", "mobile_number", "email", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
+            df_alltime = regulars.sort_values(by="counter", ascending=False)
+            st.dataframe(df_alltime[["name", "mobile_number", "email", "counter", "stamps", "free_cups", "last_visit"]].head(top_limit), use_container_width=True)
             
         else:
             st.info("No regular customer milestones hit yet.")
@@ -130,11 +133,9 @@ try:
         else:
             df_sorted = df
 
-        # Restrict visible columns strictly to: Name, Mobile, Email, Registration Date (No sequence number!)
-        directory_columns = ["name", "mobile_number", "email", "created_at"]
+        directory_columns = ["name", "mobile_number", "email", "counter", "created_at"]
         available_dir_cols = [col for col in directory_columns if col in df_sorted.columns]
         
-        # Slice dataframe based on pagination limit (default 20)
         current_limit = st.session_state.dir_limit
         df_subset = df_sorted.head(current_limit)
         
@@ -148,12 +149,12 @@ try:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # CSV Export (Exports full data set)
+        # CSV Export
         csv_data = df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Export Full Member Directory to CSV",
             data=csv_data,
-            file_name=f"bookstore_members_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
+            file_name=f"dropcaffee_members_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
             mime="text/csv",
             use_container_width=True
         )
