@@ -15,6 +15,7 @@ st.set_page_config(
     layout="centered"
 )
 
+
 # 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
 st.markdown("""
     <style>
