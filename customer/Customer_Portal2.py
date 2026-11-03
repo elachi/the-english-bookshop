@@ -216,4 +216,74 @@ if st.session_state.cust_logged_in:
         st.markdown("### 🎫 Your Digital Boarding Pass")
         st.caption("Present this digital wallet pass at the counter for smartphone camera scanning or POS barcode checkout.")
 
-        app_base_url = "
+        app_base_url = "https://your-cafe-tarnan-app.streamlit.app"  # Update with your production URL
+        qr_payload = f"{app_base_url}/?search={customer_mobile}"
+        barcode_payload = customer_mobile
+
+        qr_bytes = generate_qr_code(qr_payload)
+        barcode_bytes = generate_barcode(barcode_payload)
+
+        # Wallet Pass HTML Card Container
+        st.markdown(f"""
+        <div class="wallet-card">
+            <div class="pass-header">
+                <div>
+                    <h4 style="margin: 0; font-size: 17px; letter-spacing: 1px;">CAFÉ TÄRNAN PASS</h4>
+                    <p style="margin: 0; font-size: 12px; opacity: 0.8;">Loyalty & Rewards Club</p>
+                </div>
+                <div>
+                    <span style="background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: bold;">MEMBER</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div>
+                    <p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7;">Cardholder Name</p>
+                    <p style="margin: 0; font-size: 15px; font-weight: bold;">{customer_name}</p>
+                    <p style="margin: 6px 0 0 0; font-size: 10px; text-transform: uppercase; opacity: 0.7;">Mobile ID</p>
+                    <p style="margin: 0; font-size: 13px; font-family: monospace;">{customer_mobile}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; text-align: center;">Stamps / Free</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: bold; text-align: center;">☕ {current_stamps}/9 &nbsp;|&nbsp; 🏷️ {discounts}</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Side-by-side view for QR code and Barcode
+        col_q, col_b = st.columns(2)
+        with col_q:
+            st.markdown("#### 📱 Mobile Camera QR")
+            st.image(qr_bytes, width=190, caption="Scan with smartphone camera")
+
+        with col_b:
+            st.markdown("#### 🏷️ POS Scanner Barcode")
+            st.image(barcode_bytes, width=210, caption="Scan with counter barcode gun")
+
+        st.markdown("---")
+        st.info("💡 **Tip:** Screenshot this pass to save it to your phone photos or Apple/Google Wallet!")
+
+    # --- TAB 3: PROFILE EDITOR ---
+    with tab_profile:
+        st.markdown("### ⚙️ Update Your Profile")
+        with st.form("profile_edit_form"):
+            new_name = st.text_input("Full Name", value=customer_name)
+            new_email = st.text_input("Email", value=data.get("email", ""))
+            update_submit = st.form_submit_button("Save Changes", use_container_width=True)
+            
+            if update_submit:
+                try:
+                    supabase.table("loyalty_cards").update({
+                        "name": new_name,
+                        "email": new_email
+                    }).eq("mobile_number", customer_mobile).execute()
+                    st.success("Profile updated successfully!")
+                except Exception as e:
+                    st.error(f"Failed to update profile: {e}")
+
+        if st.button("🚪 Log Out", use_container_width=True):
+            st.session_state.cust_logged_in = False
+            st.session_state.cust_mobile = ""
+            st.session_state.cust_data = None
+            st.rerun()
