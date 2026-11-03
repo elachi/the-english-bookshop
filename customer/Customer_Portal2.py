@@ -220,7 +220,6 @@ if st.session_state.cust_logged_in:
 
 
 # --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
-    # --- TAB 2: MY QR CODE & POS BARCODE (IMAGE WALLET PASS) ---
     with tab_qr:
         st.markdown("### 🎫 Your Digital Boarding Pass")
         st.caption("Save or screenshot this digital pass to your phone for instant counter scanning.")
@@ -234,7 +233,7 @@ if st.session_state.cust_logged_in:
         barcode_bytes = generate_barcode(barcode_payload)
 
         # 2. Compose into a Real Wallet Pass Image using Pillow (PIL)
-        from PIL import Image, ImageOps
+        from PIL import Image, ImageOps, ImageDraw, ImageFont
         
         # Load code images into PIL
         qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
@@ -245,14 +244,13 @@ if st.session_state.cust_logged_in:
         pass_img = Image.new("RGBA", (pass_width, pass_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(pass_img)
 
-        # Draw Rounded Card Background (Forest Green Gradient effect / Solid Theme #307041)
+        # Draw Rounded Card Background (Forest Green Theme #307041)
         card_box = (20, 20, pass_width - 20, pass_height - 20)
         draw.rounded_rectangle(card_box, radius=32, fill="#307041", outline="#204d2b", width=4)
         
-        # Decorative Header Divider Line
-        draw.line([(60, 140), (pass_width - 60, 140)], fill="rgba(255,255,255,0.3)", width=2)
-        # Decorative Footer Divider Line
-        draw.line([(60, 640), (pass_width - 60, 640)], fill="rgba(255,255,255,0.3)", width=2)
+        # Decorative Header & Footer Divider Lines (Using standard hex colors for Pillow)
+        draw.line([(60, 140), (pass_width - 60, 140)], fill="#7ab389", width=2)
+        draw.line([(60, 640), (pass_width - 60, 640)], fill="#7ab389", width=2)
 
         # Use default high-contrast system fonts or load basic TrueType if available
         try:
@@ -268,7 +266,7 @@ if st.session_state.cust_logged_in:
         draw.text((60, 85), "LOYALTY PASS", fill="#ffffff", font=font_header)
         
         # Active Badge Box
-        draw.rounded_rectangle((pass_width - 180, 65, pass_width - 60, 115), radius=16, fill="rgba(255,255,255,0.25)")
+        draw.rounded_rectangle((pass_width - 180, 65, pass_width - 60, 115), radius=16, fill="#255933")
         draw.text((pass_width - 145, 78), "ACTIVE", fill="#ffffff", font=font_label)
 
         # Draw Customer Details (Left Column: Name & Mobile)
@@ -287,11 +285,9 @@ if st.session_state.cust_logged_in:
         draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (POS / MOBILE)", fill="#a3d9b1", font=font_label)
 
         # Resize and paste QR code and Barcode onto the pass image card
-        # QR Code paste (Left side inside code box)
         qr_img = qr_img.resize((240, 240))
         pass_img.paste(qr_img, (80, 680), qr_img)
 
-        # Barcode paste (Right side inside code box)
         barcode_img = barcode_img.resize((320, 240))
         pass_img.paste(barcode_img, (380, 680), barcode_img)
 
@@ -312,8 +308,7 @@ if st.session_state.cust_logged_in:
             use_container_width=True
         )
 
-        st.info("💡 **Tip:** Tap download or screenshot this pass image to save it directly to your phone's photo library or Apple/Google Wallet app!")
-
+        st.info("💡 **Tip:** Tap download or screenshot this pass image to save it directly to your phone's photo library or wallet app!")
 
 
 
