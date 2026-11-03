@@ -6,9 +6,11 @@ from io import BytesIO
 from datetime import datetime
 from supabase import create_client
 import os
-import base64  # <--- Make sure this is added here!
+import base64
+from PIL import Image, ImageOps, ImageDraw, ImageFont  # <--- Added ImageDraw and ImageFont here
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
