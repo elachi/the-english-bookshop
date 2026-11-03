@@ -153,7 +153,7 @@ if st.session_state.cust_logged_in:
     st.markdown(f"### Welcome back, **{customer_name}**!")
     
     # Three Tabs: Digital Card, My QR Code, Profile Editor
-    tab_stamps, tab_qr, tab_profile = st.tabs(["📖 Digital Card", "📱 My QR Code", "⚙️ Profile Editor"])
+    tab_stamps, tab_qr, tab_profile = st.tabs(["📖 Digital Card", "📱 My Wallet Pass", "⚙️ Profile Editor"])
 
     # --- TAB 1: DIGITAL CARD & REWARDS ---
     with tab_stamps:
@@ -161,7 +161,6 @@ if st.session_state.cust_logged_in:
         if stamps_left == 0 and current_stamps > 0:
             stamps_left = 9
 
-        # 1. Discount HTML (Ready/Unlocked)
         if discounts > 0:
             exp_str = discount_expiries[0][:10] if discount_expiries else "Ready to use"
             st.markdown(f"""
@@ -176,7 +175,6 @@ if st.session_state.cust_logged_in:
             </div>
             """, unsafe_allow_html=True)
 
-        # 2. Stamps Card Progress Grid
         st.markdown(f"**Current Stamps:** {current_stamps} / 9")
         book_emojis = ["✧☕︎", "⋆☕︎ ˖", "𑣲☕︎", "˗ˏˋ☕ˎˊ˗", "˙☕ྀི", "☕ᝰ.ᐟ", "𖠚｡˚", "˖°☕ ༘ ⋆", "🥤"]
         cols = st.columns(3) + st.columns(3) + st.columns(3)
@@ -189,10 +187,10 @@ if st.session_state.cust_logged_in:
                     st.markdown("### ⚪")
                     st.caption(f"Stamp {i+1}")
 
-    # --- TAB 2: MY QR CODE & POS BARCODE (IMAGE WALLET PASS) ---
+    # --- TAB 2: MY WALLET PASS (IMAGE WITH QR & BARCODE) ---
     with tab_qr:
-        st.markdown("### 🎫 Your Digital Boarding Pass")
-        st.caption("Save or screenshot this digital pass to your phone for instant counter scanning.")
+        st.markdown("### 🎫 Your Digital Wallet Pass")
+        st.caption("Download or screenshot this boarding pass card. It contains both your QR code and POS barcode for counter scanning.")
 
         app_base_url = "https://your-cafe-tarnan-app.streamlit.app"  # Update with your production URL
         qr_payload = f"{app_base_url}/?search={customer_mobile}"
@@ -202,11 +200,11 @@ if st.session_state.cust_logged_in:
         qr_bytes = generate_qr_code(qr_payload)
         barcode_bytes = generate_barcode(barcode_payload)
 
-        # 2. Compose into a Real Wallet Pass Image using Pillow (PIL)
+        # 2. Compose into a Professional Wallet Pass Image using Pillow (PIL)
         qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
         barcode_img = Image.open(BytesIO(barcode_bytes)).convert("RGBA")
 
-        # Create Pass Canvas (Width: 800px, Height: 1050px for high-res clarity)
+        # Pass Canvas Dimensions (Width: 800px, Height: 1050px)
         pass_width, pass_height = 800, 1050
         pass_img = Image.new("RGBA", (pass_width, pass_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(pass_img)
@@ -215,7 +213,7 @@ if st.session_state.cust_logged_in:
         card_box = (20, 20, pass_width - 20, pass_height - 20)
         draw.rounded_rectangle(card_box, radius=32, fill="#307041", outline="#204d2b", width=4)
         
-        # Decorative Header & Footer Divider Lines
+        # Decorative Divider Lines
         draw.line([(60, 140), (pass_width - 60, 140)], fill="#7ab389", width=2)
         draw.line([(60, 640), (pass_width - 60, 640)], fill="#7ab389", width=2)
 
@@ -249,33 +247,33 @@ if st.session_state.cust_logged_in:
         draw.text((450, 280), f"🏷️ {discounts} Free Cup(s)", fill="#ffd700", font=font_value)
 
         # Center Section Label
-        draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (POS / MOBILE)", fill="#a3d9b1", font=font_label)
+        draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (QR & BARCODE)", fill="#a3d9b1", font=font_label)
 
-        # Paste QR code and Barcode onto the pass image card
-        qr_img = qr_img.resize((240, 240))
-        pass_img.paste(qr_img, (80, 680), qr_img)
+        # Paste QR code and Barcode onto the card
+        qr_img = qr_img.resize((230, 230))
+        pass_img.paste(qr_img, (75, 685), qr_img)
 
-        barcode_img = barcode_img.resize((320, 240))
-        pass_img.paste(barcode_img, (380, 680), barcode_img)
+        barcode_img = barcode_img.resize((340, 230))
+        pass_img.paste(barcode_img, (370, 685), barcode_img)
 
         # Save final composite pass to BytesIO buffer
         pass_buffer = BytesIO()
         pass_img.convert("RGB").save(pass_buffer, format="PNG")
         pass_bytes = pass_buffer.getvalue()
 
-        # 3. Display Image in Streamlit
+        # 3. Display Image Preview
         st.image(pass_bytes, use_container_width=True)
 
-        # 4. Download Button for Phone Gallery / Wallet
+        # 4. Instant Download Button for Phone Library
         st.download_button(
-            label="📥 Download Pass Image",
+            label="📥 Download Wallet Pass Card",
             data=pass_bytes,
             file_name=f"cafetarnan_pass_{customer_mobile}.png",
             mime="image/png",
             use_container_width=True
         )
 
-        st.info("💡 **Tip:** Tap download or screenshot this pass image to save it directly to your phone's photo library or wallet app!")
+        st.info("💡 **Tip:** Tap the download button above or screenshot this card to save it directly to your phone's photo library or custom wallet album for instant scanning at the counter!")
 
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
