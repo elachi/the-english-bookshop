@@ -1,4 +1,3 @@
-
 import streamlit as st
 import qrcode
 import barcode
@@ -190,76 +189,93 @@ if st.session_state.cust_logged_in:
                     st.markdown("### ⚪")
                     st.caption(f"Stamp {i+1}")
 
-
-
-    # --- TAB 2: MOBILE WALLET-STYLE LOYALTY CARD ---
+    # --- TAB 2: MY QR CODE & POS BARCODE (IMAGE WALLET PASS) ---
     with tab_qr:
-        st.markdown("### 📱 Your Café Tärnan Wallet Card")
-        st.caption("Show this card at the counter to collect stamps or redeem rewards.")
+        st.markdown("### 🎫 Your Digital Boarding Pass")
+        st.caption("Save or screenshot this digital pass to your phone for instant counter scanning.")
 
-        # Use the same member ID in both codes so POS scanners receive a
-        # consistent value. Do not point the QR code to an unconfigured URL.
-        member_id = str(customer_mobile).strip()
-        qr_bytes = generate_qr_code(member_id)
-        barcode_bytes = generate_barcode(member_id)
+        app_base_url = "https://your-cafe-tarnan-app.streamlit.app"  # Update with your production URL
+        qr_payload = f"{app_base_url}/?search={customer_mobile}"
+        barcode_payload = customer_mobile
 
-        @st.cache_data(show_spinner=False)
-        def render_wallet_card(name, member_id, stamps, free_cups, qr_png, barcode_png):
-            """Produce a scannable high-resolution wallet-style PNG."""
-            W, H = 760, 1080
-            img = Image.new("RGB", (W, H), "#f2f5f1")
-            draw = ImageDraw.Draw(img)
-            green, dark, pale = "#307041", "#204d2b", "#d5ead9"
+        # 1. Generate Raw Code Bytes
+        qr_bytes = generate_qr_code(qr_payload)
+        barcode_bytes = generate_barcode(barcode_payload)
 
-            def font(size, bold=False):
-                paths = ([
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                    "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
-                    "arialbd.ttf",
-                ] if bold else [
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                    "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-                    "arial.ttf",
-                ])
-                for path in paths:
-                    try:
-                        return ImageFont.truetype(path, size)
-                    except OSError:
-                        pass
-                return ImageFont.load_default()
+        # 2. Compose into a Real Wallet Pass Image using Pillow (PIL)
+        qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+        barcode_img = Image.open(BytesIO(barcode_bytes)).convert("RGBA")
 
-            # Card silhouette and green header (no alpha-to-black corners).
-            draw.rounded_rectangle((22, 22, 738, 1058), radius=38, fill="white")
-            draw.rounded_rectangle((22, 22, 738, 435), radius=38, fill=green)
-            draw.rectangle((22, 395, 738, 435), fill=green)
+        # Create Pass Canvas (Width: 800px, Height: 1050px for high-res clarity)
+        pass_width, pass_height = 800, 1050
+        pass_img = Image.new("RGBA", (pass_width, pass_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(pass_img)
 
-            draw.text((70, 72), "CAFÉ TÄRNAN", font=font(33, True), fill="white")
-            draw.text((70, 123), "LOYALTY CARD", font=font(18, True), fill=pale)
-            draw.rounded_rectangle((568, 111, 686, 151), radius=20, fill=dark)
-            draw.text((591, 121), "ACTIVE", font=font(17, True), fill="white")
+        # Draw Rounded Card Background (Forest Green Theme #307041)
+        card_box = (20, 20, pass_width - 20, pass_height - 20)
+        draw.rounded_rectangle(card_box, radius=32, fill="#307041", outline="#204d2b", width=4)
+        
+        # Decorative Header & Footer Divider Lines
+        draw.line([(60, 140), (pass_width - 60, 140)], fill="#7ab389", width=2)
+        draw.line([(60, 640), (pass_width - 60, 640)], fill="#7ab389", width=2)
 
-            draw.text((70, 202), "CARDHOLDER", font=font(18, True), fill=pale)
-            holder = str(name or "Valued Customer").strip()
-            holder_font = font(38, True)
-            while draw.textbbox((0, 0), holder, font=holder_font)[2] > 605 and len(holder) > 1:
-                holder_font = font(max(18, holder_font.size - 2), True)
-                if holder_font.size == 18:
-                    while draw.textbbox((0, 0), holder + "…", font=holder_font)[2] > 605:
-                        holder = holder[:-1]
-                    holder += "…"
-                    break
-            draw.text((70, 235), holder, font=holder_font, fill="white")
+        # Fonts setup
+        try:
+            font_title = ImageFont.truetype("arial.ttf", 24)
+            font_header = ImageFont.truetype("arial.ttf", 36)
+            font_label = ImageFont.truetype("arial.ttf", 18)
+            font_value = ImageFont.truetype("arial.ttf", 28)
+        except IOError:
+            font_title = font_header = font_label = font_value = ImageFont.load_default()
 
-            draw.text((70, 323), "STAMPS", font=font(18, True), fill=pale)
-            draw.text((70, 352), f"{int(stamps) % 9} / 9", font=font(31, True), fill="white")
-            draw.text((365, 323), "FREE COFFEES", font=font(18, True), fill=pale)
-            draw.text((365, 352), str(int(free_cups)), font=font(31, True), fill="white")
+        # Draw Header Texts
+        draw.text((60, 55), "CAFÉ TÄRNAN", fill="#a3d9b1", font=font_title)
+        draw.text((60, 85), "LOYALTY PASS", fill="#ffffff", font=font_header)
+        
+        # Active Badge Box
+        draw.rounded_rectangle((pass_width - 180, 65, pass_width - 60, 115), radius=16, fill="#255933")
+        draw.text((pass_width - 145, 78), "ACTIVE", fill="#ffffff", font=font_label)
 
-            # White scanning area; quiet zones are preserved around both codes.
-            draw.text((W // 2, 475), "SCAN AT THE COUNTER", anchor="mt",
+        # Draw Customer Details
+        draw.text((60, 175), "CARDHOLDER NAME", fill="#a3d9b1", font=font_label)
+        draw.text((60, 205), customer_name, fill="#ffffff", font=font_value)
 
+        draw.text((60, 280), "MOBILE ID", fill="#a3d9b1", font=font_label)
+        draw.text((60, 310), str(customer_mobile), fill="#ffffff", font=font_value)
 
+        # Draw Rewards Details
+        draw.text((450, 175), "STAMPS & REWARDS", fill="#a3d9b1", font=font_label)
+        draw.text((450, 205), f"☕ {current_stamps} / 9 Stamps", fill="#ffffff", font=font_value)
+        draw.text((450, 280), f"🏷️ {discounts} Free Cup(s)", fill="#ffd700", font=font_value)
 
+        # Center Section Label
+        draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (POS / MOBILE)", fill="#a3d9b1", font=font_label)
+
+        # Paste QR code and Barcode onto the pass image card
+        qr_img = qr_img.resize((240, 240))
+        pass_img.paste(qr_img, (80, 680), qr_img)
+
+        barcode_img = barcode_img.resize((320, 240))
+        pass_img.paste(barcode_img, (380, 680), barcode_img)
+
+        # Save final composite pass to BytesIO buffer
+        pass_buffer = BytesIO()
+        pass_img.convert("RGB").save(pass_buffer, format="PNG")
+        pass_bytes = pass_buffer.getvalue()
+
+        # 3. Display Image in Streamlit
+        st.image(pass_bytes, use_container_width=True)
+
+        # 4. Download Button for Phone Gallery / Wallet
+        st.download_button(
+            label="📥 Download Pass Image",
+            data=pass_bytes,
+            file_name=f"cafetarnan_pass_{customer_mobile}.png",
+            mime="image/png",
+            use_container_width=True
+        )
+
+        st.info("💡 **Tip:** Tap download or screenshot this pass image to save it directly to your phone's photo library or wallet app!")
 
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
