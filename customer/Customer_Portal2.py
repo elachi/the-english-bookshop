@@ -1,54 +1,86 @@
+
 import streamlit as st
 import qrcode
-import barcode
-from barcode.writer import ImageWriter
 from io import BytesIO
+from datetime import datetime
 from supabase import create_client
-import os
-import base64
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 
-# 1. Page Config
+
+# 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Drop Caffee - Member Card", 
+    page_title="Cafe Loyalty Program", 
     page_icon="☕", 
     layout="centered"
 )
 
-# 2. Custom CSS for Boarding Pass / Wallet Card & Branding
+# 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
 st.markdown("""
     <style>
+        /* Hides the top-right hamburger menu and Deploy button */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
+        
+        /* Hides the default "Made with Streamlit" footer */
         footer {visibility: hidden;}
+        
+        /* Optional: Shifts the main content up slightly so there isn't a blank gap at the top */
         .block-container {
             padding-top: 2rem;
         }
-        h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
-            color: #0f2648 !important;
-        }
-        .wallet-card {
-            background: linear-gradient(135deg, #0f2648 0%, #1c3b6d 100%);
-            border-radius: 20px;
-            padding: 25px;
-            color: white !important;
-            box-shadow: 0 12px 30px rgba(15, 38, 72, 0.25);
-            margin-top: 10px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .wallet-card h3, .wallet-card p, .wallet-card span, .wallet-card div {
-            color: white !important;
-        }
-        .pass-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px dashed rgba(255, 255, 255, 0.3);
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
     </style>
 """, unsafe_allow_html=True)
+
+
+
+st.set_page_config(page_title="My Bookstore Loyalty Card - V2", page_icon="📚", layout="centered")
+
+# --- MOBILE STYLING & DIGITAL CARD THEME ---
+st.markdown("""
+<style>
+    /* Apply forest green color across text elements */
+    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+        color: #307041 !important;
+    }
+
+    /* Enlarge tab text */
+    button[data-baseweb="tab"] div p {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #307041 !important;
+    }
+
+    /* Modern Loyalty Card Styling */
+    .loyalty-card {
+        background: linear-gradient(135deg, #307041 0%, #204d2b 100%);
+        padding: 20px;
+        border-radius: 16px;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 12px;
+    }
+    .loyalty-card * {
+        color: white !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Helper function to generate a dynamic QR code image from a mobile number/ID
+def generate_qr_code(data_string):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(data_string)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return buffered.getvalue()
 
 # Supabase Connection Setup
 try:
@@ -65,111 +97,56 @@ def init_supabase():
     return create_client(SUPABASE_URL.strip().rstrip('/'), SUPABASE_KEY)
 
 supabase = init_supabase()
+ph = PasswordHasher()
 
-# --- HELPER FUNCTIONS (Framework-Agnostic) ---
-def generate_qr_code(url_string: str) -> bytes:
-    """Generates a QR code image encoding a URL (for mobile cameras)."""
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=1,
-    )
-    qr.add_data(url_string)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="#0f2648", back_color="white")
+# Session State Initialization
+if "cust_logged_in" not in st.session_state:
+    st.session_state.cust_logged_in = False
+if "cust_mobile" not in st.session_state:
+    st.session_state.cust_mobile = ""
+if "cust_data" not in st.session_state:
+    st.session_state.cust_data = None
+if "cust_first_login_setup" not in st.session_state:
+    st.session_state.cust_first_login_setup = False
+
+st.image("cafetarnan.png", width=120)
+st.subheader("Your loyalty stamp Card")
+
+# --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
+if st.session_state.cust_logged_in:
+    data = st.session_state.cust_data
+    customer_name = data.get("name", "Valued Customer")
+    customer_mobile = data["mobile_number"]
+    current_stamps = data.get("stamps", 0)
+    discounts = data.get("free_cups", 0)
+    discount_expiries = data.get("free_cup_expiries", []) or []
+
+    st.markdown(f"### Welcome back, **{customer_name}**!")
     
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    return buffered.getvalue()
+    # Three Tabs: Digital Card, QR Code, Profile Editor
+    tab_stamps, tab_qr, tab_profile = st.tabs(["📖 Digital Card", "📱 My QR Code", "⚙️ Profile Editor"])
 
-def generate_barcode(text_string: str) -> bytes:
-    """Generates a Code128 Barcode image encoding a raw mobile ID (for POS scanners)."""
-    rv = BytesIO()
-    Code128 = barcode.get_class('code128')
-    clean_text = str(text_string).strip()
-    barcode_obj = Code128(clean_text, writer=ImageWriter())
+    # --- TAB 1: DIGITAL CARD & REWARDS ---
+    with tab_stamps:
+        # Calculate remaining stamps until next discount (assuming target is 9)
+        stamps_left = max(0, 9 - (current_stamps % 9))
+        if stamps_left == 0 and current_stamps > 0:
+            stamps_left = 9
+
+        # --- HTML COMPONENTS FOR REWARDS & STAMPS ---
+        
+        # 1. Discount HTML (Ready/Unlocked)
+        has_discount = discounts > 0
+        disc_card_html = f"""
+        <div style="background: #f2f8f3; border: 1px solid #307041; border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 24px; line-height: 1.1;">🎟️</div>
+            <div style="font-size: 12px; color: #307041; margin-top: 2px; font-weight: 700;">
+                1x Bookstore Discount Unlocked! 🎉
+            </div>
+            <div style="font-size: 10px; color: #307041; opacity: 0.8; margin-top: 2px;">
+                {f"Expires on: {discount_expiries[0][:10]}" if discount_expiries else "Ready to use at counter"}
+            </div>
+        </div>
+        """
+
     
-    options = {'write_text': True, 'font_size': 9, 'text_distance': 4, 'dpi': 200, 'quiet_zone': 2}
-    barcode_obj.write(rv, options=options)
-    rv.seek(0)
-    return rv.getvalue()
-
-def img_to_base64(img_bytes: bytes) -> str:
-    return base64.b64encode(img_bytes).decode('utf-8')
-
-# --- CUSTOMER PORTAL VIEW ---
-st.image("DropCaffee/images/dropcafe.png", width=140)
-st.title("☕ Customer Member Portal")
-
-# For demonstration or session-based customer lookup
-# You can replace customer_mobile with your dynamic session state variable (e.g. st.session_state.get("customer_mobile"))
-customer_mobile = st.session_state.get("customer_mobile", "0712345678")
-customer_name = st.session_state.get("customer_name", "Valued Member")
-app_base_url = "https://your-dropcaffee-app.streamlit.app"  # Update with your deployed URL
-
-# Fetch live card data from Supabase if connected
-current_stamps = 0
-current_discounts = 0
-if supabase:
-    try:
-        res = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
-        if res.data:
-            card_data = res.data[0]
-            customer_name = card_data.get("name", customer_name)
-            current_stamps = card_data.get("stamps", 0)
-            current_discounts = card_data.get("free_cups", 0)
-    except Exception:
-        pass
-
-# Payloads
-qr_payload = f"{app_base_url}/?search={customer_mobile}"
-barcode_payload = customer_mobile
-
-qr_bytes = generate_qr_code(qr_payload)
-barcode_bytes = generate_barcode(barcode_payload)
-
-# --- VIRTUAL BOARDING PASS CARD UI ---
-st.markdown("### 🎫 Your Digital Member Pass")
-st.caption("Present this wallet pass at the counter for instant mobile scanning or POS barcode checkout.")
-
-st.markdown(f"""
-<div class="wallet-card">
-    <div class="pass-header">
-        <div>
-            <h4 style="margin: 0; font-size: 18px; letter-spacing: 1px;">DROP CAFFEE PASS</h4>
-            <p style="margin: 0; font-size: 13px; opacity: 0.8;">Loyalty & Rewards Club</p>
-        </div>
-        <div style="text-align: right;">
-            <span style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold;">ACTIVE</span>
-        </div>
-    </div>
-    
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <div>
-            <p style="margin: 0; font-size: 11px; text-transform: uppercase; opacity: 0.7;">Cardholder Name</p>
-            <p style="margin: 0; font-size: 16px; font-weight: bold;">{customer_name}</p>
-            <p style="margin: 8px 0 0 0; font-size: 11px; text-transform: uppercase; opacity: 0.7;">Mobile ID</p>
-            <p style="margin: 0; font-size: 14px; font-family: monospace;">{customer_mobile}</p>
-        </div>
-        <div>
-            <p style="margin: 0; font-size: 11px; text-transform: uppercase; opacity: 0.7; text-align: center;">Stamps / Rewards</p>
-            <p style="margin: 0; font-size: 18px; font-weight: bold; text-align: center;">☕ {current_stamps}/9 &nbsp;|&nbsp; 🏷️ {current_discounts} Free</p>
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Side-by-side display of the QR code and Barcode inside clean sections
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("#### 📱 Mobile Camera QR")
-    st.image(qr_bytes, width=200, caption="Scan with smartphone camera")
-
-with col2:
-    st.markdown("#### 🏷️ POS Scanner Barcode")
-    st.image(barcode_bytes, width=220, caption="Scan with counter barcode gun")
-
-st.markdown("---")
-st.info("💡 **Tip:** Take a screenshot of this pass and save it to your phone's photo library or Apple/Google Wallet for fast access!")
