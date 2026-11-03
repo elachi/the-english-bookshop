@@ -213,6 +213,9 @@ if st.session_state.cust_logged_in:
 
 
 
+
+
+
 # --- TAB 2: MY QR CODE & POS BARCODE (VIRTUAL WALLET PASS) ---
     with tab_qr:
         st.markdown("### 🎫 Your Digital Boarding Pass")
@@ -225,33 +228,9 @@ if st.session_state.cust_logged_in:
         qr_bytes = generate_qr_code(qr_payload)
         barcode_bytes = generate_barcode(barcode_payload)
 
-        # Wallet Pass HTML Card Container (Unindented to prevent markdown escaping)
-        wallet_html = f"""
-<div class="wallet-card">
-    <div class="pass-header">
-        <div>
-            <h4 style="margin: 0; font-size: 17px; letter-spacing: 1px; color: white !important;">CAFÉ TÄRNAN PASS</h4>
-            <p style="margin: 0; font-size: 12px; opacity: 0.8; color: white !important;">Loyalty & Rewards Club</p>
-        </div>
-        <div>
-            <span style="background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white !important;">MEMBER</span>
-        </div>
-    </div>
-    
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-        <div>
-            <p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; color: white !important;">Cardholder Name</p>
-            <p style="margin: 0; font-size: 15px; font-weight: bold; color: white !important;">{customer_name}</p>
-            <p style="margin: 6px 0 0 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; color: white !important;">Mobile ID</p>
-            <p style="margin: 0; font-size: 13px; font-family: monospace; color: white !important;">{customer_mobile}</p>
-        </div>
-        <div>
-            <p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; text-align: center; color: white !important;">Stamps / Free</p>
-            <p style="margin: 0; font-size: 16px; font-weight: bold; text-align: center; color: white !important;">☕ {current_stamps}/9 &nbsp;|&nbsp; 🏷️ {discounts}</p>
-        </div>
-    </div>
-</div>
-"""
+        # Clean single-line HTML string to prevent markdown escaping/unicode spaces
+        wallet_html = f"""<div class="wallet-card"><div class="pass-header"><div><h4 style="margin: 0; font-size: 17px; letter-spacing: 1px; color: white !important;">CAFÉ TÄRNAN PASS</h4><p style="margin: 0; font-size: 12px; opacity: 0.8; color: white !important;">Loyalty & Rewards Club</p></div><div><span style="background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white !important;">MEMBER</span></div></div><div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;"><div><p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; color: white !important;">Cardholder Name</p><p style="margin: 0; font-size: 15px; font-weight: bold; color: white !important;">{customer_name}</p><p style="margin: 6px 0 0 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; color: white !important;">Mobile ID</p><p style="margin: 0; font-size: 13px; font-family: monospace; color: white !important;">{customer_mobile}</p></div><div><p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; text-align: center; color: white !important;">Stamps / Free</p><p style="margin: 0; font-size: 16px; font-weight: bold; text-align: center; color: white !important;">☕ {current_stamps}/9 &nbsp;|&nbsp; 🏷️ {discounts}</p></div></div></div>"""
+        
         st.markdown(wallet_html, unsafe_allow_html=True)
 
         # Side-by-side view for QR code and Barcode
@@ -266,6 +245,8 @@ if st.session_state.cust_logged_in:
 
         st.markdown("---")
         st.info("💡 **Tip:** Screenshot this pass to save it to your phone photos or Apple/Google Wallet!")
+
+
 
 
     # --- TAB 3: PROFILE EDITOR ---
