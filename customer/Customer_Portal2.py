@@ -6,6 +6,7 @@ from io import BytesIO
 from datetime import datetime
 from supabase import create_client
 import os
+import base64  # <--- Make sure this is added here!
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
