@@ -218,27 +218,99 @@ if st.session_state.cust_logged_in:
 
 
 # --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
-    # --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
+    # --- TAB 2: MY QR CODE & POS BARCODE (IMAGE WALLET PASS) ---
     with tab_qr:
         st.markdown("### 🎫 Your Digital Boarding Pass")
-        st.caption("Present this digital wallet pass at the counter for smartphone camera scanning or POS barcode checkout.")
+        st.caption("Save or screenshot this digital pass to your phone for instant counter scanning.")
 
         app_base_url = "https://your-cafe-tarnan-app.streamlit.app"  # Update with your production URL
         qr_payload = f"{app_base_url}/?search={customer_mobile}"
         barcode_payload = customer_mobile
 
+        # 1. Generate Raw Code Bytes
         qr_bytes = generate_qr_code(qr_payload)
         barcode_bytes = generate_barcode(barcode_payload)
 
-        # Convert images to base64
-        qr_b64 = base64.b64encode(qr_bytes).decode('utf-8')
-        barcode_b64 = base64.b64encode(barcode_bytes).decode('utf-8')
-
-        # Single-line HTML string to prevent markdown code-block escaping
-        pass_html = f'<div style="background: linear-gradient(135deg, #307041 0%, #1a3d24 100%); border-radius: 20px; padding: 24px; color: white; box-shadow: 0 12px 30px rgba(48, 112, 65, 0.3); font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; margin-top: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);"><div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255, 255, 255, 0.4); padding-bottom: 15px; margin-bottom: 18px;"><div><div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.8; color: #a3d9b1;">CAFÉ TÄRNAN</div><div style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; margin-top: 2px;">LOYALTY PASS</div></div><div style="text-align: right;"><span style="background: rgba(255, 255, 255, 0.2); padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; letter-spacing: 1px; color: #ffffff;">ACTIVE</span></div></div><div style="display: flex; justify-content: space-between; margin-bottom: 20px;"><div><div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Cardholder Name</div><div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">{customer_name}</div><div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1; margin-top: 12px;">Mobile ID</div><div style="font-size: 14px; font-family: monospace; color: #ffffff; margin-top: 2px;">{customer_mobile}</div></div><div style="text-align: right;"><div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Stamps & Rewards</div><div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">☕ {current_stamps} / 9</div><div style="font-size: 13px; font-weight: 600; color: #ffd700; margin-top: 4px;">🏷️ {discounts} Free Cup(s)</div></div></div><div style="border-top: 1px dashed rgba(255, 255, 255, 0.4); padding-top: 18px; margin-top: 10px; text-align: center;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; color: #a3d9b1; margin-bottom: 10px;">Scan at Counter (POS / Mobile Camera)</div><div style="display: flex; justify-content: center; gap: 15px; align-items: center; background: white; padding: 12px; border-radius: 12px;"><div style="text-align: center;"><img src="data:image/png;base64,{qr_b64}" width="125" style="display: block; margin: 0 auto;"/><span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">QR Code</span></div><div style="width: 1px; background: #ddd; height: 105px;"></div><div style="text-align: center;"><img src="data:image/png;base64,{barcode_b64}" width="155" style="display: block; margin: 0 auto;"/><span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">POS Barcode</span></div></div></div></div>'
+        # 2. Compose into a Real Wallet Pass Image using Pillow (PIL)
+        from PIL import Image, ImageOps
         
-        st.markdown(pass_html, unsafe_allow_html=True)
-        st.info("💡 **Tip:** Take a screenshot of this boarding pass and save it directly to your phone's photo library or wallet app for instant scanning!")
+        # Load code images into PIL
+        qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+        barcode_img = Image.open(BytesIO(barcode_bytes)).convert("RGBA")
+
+        # Create Pass Canvas (Width: 800px, Height: 1050px for high-res clarity)
+        pass_width, pass_height = 800, 1050
+        pass_img = Image.new("RGBA", (pass_width, pass_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(pass_img)
+
+        # Draw Rounded Card Background (Forest Green Gradient effect / Solid Theme #307041)
+        card_box = (20, 20, pass_width - 20, pass_height - 20)
+        draw.rounded_rectangle(card_box, radius=32, fill="#307041", outline="#204d2b", width=4)
+        
+        # Decorative Header Divider Line
+        draw.line([(60, 140), (pass_width - 60, 140)], fill="rgba(255,255,255,0.3)", width=2)
+        # Decorative Footer Divider Line
+        draw.line([(60, 640), (pass_width - 60, 640)], fill="rgba(255,255,255,0.3)", width=2)
+
+        # Use default high-contrast system fonts or load basic TrueType if available
+        try:
+            font_title = ImageFont.truetype("arial.ttf", 24)
+            font_header = ImageFont.truetype("arial.ttf", 36)
+            font_label = ImageFont.truetype("arial.ttf", 18)
+            font_value = ImageFont.truetype("arial.ttf", 28)
+        except IOError:
+            font_title = font_header = font_label = font_value = ImageFont.load_default()
+
+        # Draw Header Texts
+        draw.text((60, 55), "CAFÉ TÄRNAN", fill="#a3d9b1", font=font_title)
+        draw.text((60, 85), "LOYALTY PASS", fill="#ffffff", font=font_header)
+        
+        # Active Badge Box
+        draw.rounded_rectangle((pass_width - 180, 65, pass_width - 60, 115), radius=16, fill="rgba(255,255,255,0.25)")
+        draw.text((pass_width - 145, 78), "ACTIVE", fill="#ffffff", font=font_label)
+
+        # Draw Customer Details (Left Column: Name & Mobile)
+        draw.text((60, 175), "CARDHOLDER NAME", fill="#a3d9b1", font=font_label)
+        draw.text((60, 205), customer_name, fill="#ffffff", font=font_value)
+
+        draw.text((60, 280), "MOBILE ID", fill="#a3d9b1", font=font_label)
+        draw.text((60, 310), str(customer_mobile), fill="#ffffff", font=font_value)
+
+        # Draw Rewards Details (Right Column: Stamps & Free Cups)
+        draw.text((450, 175), "STAMPS & REWARDS", fill="#a3d9b1", font=font_label)
+        draw.text((450, 205), f"☕ {current_stamps} / 9 Stamps", fill="#ffffff", font=font_value)
+        draw.text((450, 280), f"🏷️ {discounts} Free Cup(s)", fill="#ffd700", font=font_value)
+
+        # Center Section Label
+        draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (POS / MOBILE)", fill="#a3d9b1", font=font_label)
+
+        # Resize and paste QR code and Barcode onto the pass image card
+        # QR Code paste (Left side inside code box)
+        qr_img = qr_img.resize((240, 240))
+        pass_img.paste(qr_img, (80, 680), qr_img)
+
+        # Barcode paste (Right side inside code box)
+        barcode_img = barcode_img.resize((320, 240))
+        pass_img.paste(barcode_img, (380, 680), barcode_img)
+
+        # Save final composite pass to BytesIO buffer
+        pass_buffer = BytesIO()
+        pass_img.convert("RGB").save(pass_buffer, format="PNG")
+        pass_bytes = pass_buffer.getvalue()
+
+        # 3. Display Image in Streamlit
+        st.image(pass_bytes, use_container_width=True)
+
+        # 4. Download Button for Phone Gallery / Wallet
+        st.download_button(
+            label="📥 Download Pass Image",
+            data=pass_bytes,
+            file_name=f"cafetarnan_pass_{customer_mobile}.png",
+            mime="image/png",
+            use_container_width=True
+        )
+
+        st.info("💡 **Tip:** Tap download or screenshot this pass image to save it directly to your phone's photo library or Apple/Google Wallet app!")
 
 
 
