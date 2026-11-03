@@ -216,7 +216,7 @@ if st.session_state.cust_logged_in:
 
 
 
-# --- TAB 2: MY QR CODE & POS BARCODE (VIRTUAL WALLET PASS) ---
+# --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
     with tab_qr:
         st.markdown("### 🎫 Your Digital Boarding Pass")
         st.caption("Present this digital wallet pass at the counter for smartphone camera scanning or POS barcode checkout.")
@@ -228,23 +228,60 @@ if st.session_state.cust_logged_in:
         qr_bytes = generate_qr_code(qr_payload)
         barcode_bytes = generate_barcode(barcode_payload)
 
-        # Clean single-line HTML string to prevent markdown escaping/unicode spaces
-        wallet_html = f"""<div class="wallet-card"><div class="pass-header"><div><h4 style="margin: 0; font-size: 17px; letter-spacing: 1px; color: white !important;">CAFÉ TÄRNAN PASS</h4><p style="margin: 0; font-size: 12px; opacity: 0.8; color: white !important;">Loyalty & Rewards Club</p></div><div><span style="background: rgba(255,255,255,0.25); padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: bold; color: white !important;">MEMBER</span></div></div><div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;"><div><p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; color: white !important;">Cardholder Name</p><p style="margin: 0; font-size: 15px; font-weight: bold; color: white !important;">{customer_name}</p><p style="margin: 6px 0 0 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; color: white !important;">Mobile ID</p><p style="margin: 0; font-size: 13px; font-family: monospace; color: white !important;">{customer_mobile}</p></div><div><p style="margin: 0; font-size: 10px; text-transform: uppercase; opacity: 0.7; text-align: center; color: white !important;">Stamps / Free</p><p style="margin: 0; font-size: 16px; font-weight: bold; text-align: center; color: white !important;">☕ {current_stamps}/9 &nbsp;|&nbsp; 🏷️ {discounts}</p></div></div></div>"""
+        # Convert images to base64 so they embed cleanly inside the HTML pass card
+        qr_b64 = base64.b64encode(qr_bytes).decode('utf-8')
+        barcode_b64 = base64.b64encode(barcode_bytes).decode('utf-8')
+
+        # Boarding Pass Card HTML design matching the wallet pass style
+        pass_html = f"""
+        <div style="background: linear-gradient(135deg, #307041 0%, #1a3d24 100%); border-radius: 20px; padding: 24px; color: white; box-shadow: 0 12px 30px rgba(48, 112, 65, 0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin-top: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
+            <!-- Pass Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255, 255, 255, 0.4); padding-bottom: 15px; margin-bottom: 18px;">
+                <div>
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.8; color: #a3d9b1;">CAFÉ TÄRNAN</div>
+                    <div style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; margin-top: 2px;">LOYALTY PASS</div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: rgba(255, 255, 255, 0.2); padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; letter-spacing: 1px; color: #ffffff;">ACTIVE</span>
+                </div>
+            </div>
+
+            <!-- Pass Body Details -->
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Cardholder Name</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">{customer_name}</div>
+                    
+                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1; margin-top: 12px;">Mobile ID</div>
+                    <div style="font-size: 14px; font-family: monospace; color: #ffffff; margin-top: 2px;">{customer_mobile}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Stamps & Rewards</div>
+                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">☕ {current_stamps} / 9</div>
+                    <div style="font-size: 13px; font-weight: 600; color: #ffd700; margin-top: 4px;">🏷️ {discounts} Free Cup(s)</div>
+                </div>
+            </div>
+
+            <!-- Embedded Scannable Codes Section -->
+            <div style="border-top: 1px dashed rgba(255, 255, 255, 0.4); padding-top: 18px; margin-top: 10px; text-align: center;">
+                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; color: #a3d9b1; margin-bottom: 10px;">Scan at Counter (POS / Mobile Camera)</div>
+                <div style="display: flex; justify-content: center; gap: 15px; align-items: center; background: white; padding: 12px; border-radius: 12px;">
+                    <div style="text-align: center;">
+                        <img src="data:image/png;base64,{qr_b64}" width="125" style="display: block; margin: 0 auto;"/>
+                        <span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">QR Code</span>
+                    </div>
+                    <div style="width: 1px; background: #ddd; height: 105px;"></div>
+                    <div style="text-align: center;">
+                        <img src="data:image/png;base64,{barcode_b64}" width="155" style="display: block; margin: 0 auto;"/>
+                        <span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">POS Barcode</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """
         
-        st.markdown(wallet_html, unsafe_allow_html=True)
-
-        # Side-by-side view for QR code and Barcode
-        col_q, col_b = st.columns(2)
-        with col_q:
-            st.markdown("#### 📱 Mobile Camera QR")
-            st.image(qr_bytes, width=190, caption="Scan with smartphone camera")
-
-        with col_b:
-            st.markdown("#### 🏷️ POS Scanner Barcode")
-            st.image(barcode_bytes, width=210, caption="Scan with counter barcode gun")
-
-        st.markdown("---")
-        st.info("💡 **Tip:** Screenshot this pass to save it to your phone photos or Apple/Google Wallet!")
+        st.markdown(pass_html, unsafe_allow_html=True)
+        st.info("💡 **Tip:** Take a screenshot of this boarding pass and save it directly to your phone's photo library or wallet app for instant scanning!")
 
 
 
