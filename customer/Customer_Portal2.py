@@ -1,3 +1,36 @@
+
+import streamlit as st
+import qrcode
+import barcode
+from barcode.writer import ImageWriter
+from io import BytesIO
+from datetime import datetime
+from supabase import create_client
+import os
+import base64
+from PIL import Image, ImageOps, ImageDraw, ImageFont
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+
+# 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
+st.set_page_config(
+    page_title="Café Tärnan Loyalty Program", 
+    page_icon="☕", 
+    layout="centered"
+)
+
+# 2. INJECT CUSTOM CSS & DIGITAL CARD THEME
+st.markdown("""
+<style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .block-container {
+        padding-top: 2rem;
+    }
+    
+    /* Apply forest green color across text elements */
+    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #307041 !important;
     }
 
@@ -157,4 +190,97 @@ if st.session_state.cust_logged_in:
                     st.markdown("### ⚪")
                     st.caption(f"Stamp {i+1}")
 
+
+
     # --- TAB 2: MOBILE WALLET-STYLE LOYALTY CARD ---
+    with tab_qr:
+        st.markdown("### 📱 Your Café Tärnan Wallet Card")
+        st.caption("Show this card at the counter to collect stamps or redeem rewards.")
+
+        # Use the same member ID in both codes so POS scanners receive a
+        # consistent value. Do not point the QR code to an unconfigured URL.
+        member_id = str(customer_mobile).strip()
+        qr_bytes = generate_qr_code(member_id)
+        barcode_bytes = generate_barcode(member_id)
+
+        @st.cache_data(show_spinner=False)
+        def render_wallet_card(name, member_id, stamps, free_cups, qr_png, barcode_png):
+            """Produce a scannable high-resolution wallet-style PNG."""
+            W, H = 760, 1080
+            img = Image.new("RGB", (W, H), "#f2f5f1")
+            draw = ImageDraw.Draw(img)
+            green, dark, pale = "#307041", "#204d2b", "#d5ead9"
+
+            def font(size, bold=False):
+                paths = ([
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf",
+                    "arialbd.ttf",
+                ] if bold else [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+                    "arial.ttf",
+                ])
+                for path in paths:
+                    try:
+                        return ImageFont.truetype(path, size)
+                    except OSError:
+                        pass
+                return ImageFont.load_default()
+
+            # Card silhouette and green header (no alpha-to-black corners).
+            draw.rounded_rectangle((22, 22, 738, 1058), radius=38, fill="white")
+            draw.rounded_rectangle((22, 22, 738, 435), radius=38, fill=green)
+            draw.rectangle((22, 395, 738, 435), fill=green)
+
+            draw.text((70, 72), "CAFÉ TÄRNAN", font=font(33, True), fill="white")
+            draw.text((70, 123), "LOYALTY CARD", font=font(18, True), fill=pale)
+            draw.rounded_rectangle((568, 111, 686, 151), radius=20, fill=dark)
+            draw.text((591, 121), "ACTIVE", font=font(17, True), fill="white")
+
+            draw.text((70, 202), "CARDHOLDER", font=font(18, True), fill=pale)
+            holder = str(name or "Valued Customer").strip()
+            holder_font = font(38, True)
+            while draw.textbbox((0, 0), holder, font=holder_font)[2] > 605 and len(holder) > 1:
+                holder_font = font(max(18, holder_font.size - 2), True)
+                if holder_font.size == 18:
+                    while draw.textbbox((0, 0), holder + "…", font=holder_font)[2] > 605:
+                        holder = holder[:-1]
+                    holder += "…"
+                    break
+            draw.text((70, 235), holder, font=holder_font, fill="white")
+
+            draw.text((70, 323), "STAMPS", font=font(18, True), fill=pale)
+            draw.text((70, 352), f"{int(stamps) % 9} / 9", font=font(31, True), fill="white")
+            draw.text((365, 323), "FREE COFFEES", font=font(18, True), fill=pale)
+            draw.text((365, 352), str(int(free_cups)), font=font(31, True), fill="white")
+
+            # White scanning area; quiet zones are preserved around both codes.
+            draw.text((W // 2, 475), "SCAN AT THE COUNTER", anchor="mt",
+
+
+
+
+    # --- TAB 3: PROFILE EDITOR ---
+    with tab_profile:
+        st.markdown("### ⚙️ Update Your Profile")
+        with st.form("profile_edit_form"):
+            new_name = st.text_input("Full Name", value=customer_name)
+            new_email = st.text_input("Email", value=data.get("email", ""))
+            update_submit = st.form_submit_button("Save Changes", use_container_width=True)
+            
+            if update_submit:
+                try:
+                    supabase.table("loyalty_cards").update({
+                        "name": new_name,
+                        "email": new_email
+                    }).eq("mobile_number", customer_mobile).execute()
+                    st.success("Profile updated successfully!")
+                except Exception as e:
+                    st.error(f"Failed to update profile: {e}")
+
+        if st.button("🚪 Log Out", use_container_width=True):
+            st.session_state.cust_logged_in = False
+            st.session_state.cust_mobile = ""
+            st.session_state.cust_data = None
+            st.rerun()
