@@ -7,10 +7,9 @@ from datetime import datetime
 from supabase import create_client
 import os
 import base64
-from PIL import Image, ImageOps, ImageDraw, ImageFont  # <--- Added ImageDraw and ImageFont here
+from PIL import Image, ImageOps, ImageDraw, ImageFont
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
@@ -52,29 +51,6 @@ st.markdown("""
     }
     .loyalty-card * {
         color: white !important;
-    }
-
-    /* Wallet Pass Card Styling */
-    .wallet-card {
-        background: linear-gradient(135deg, #307041 0%, #1a3d24 100%);
-        border-radius: 20px;
-        padding: 22px;
-        color: white !important;
-        box-shadow: 0 10px 25px rgba(48, 112, 65, 0.25);
-        margin-top: 10px;
-        margin-bottom: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-    .wallet-card h3, .wallet-card p, .wallet-card span, .wallet-card div {
-        color: white !important;
-    }
-    .pass-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px dashed rgba(255, 255, 255, 0.3);
-        padding-bottom: 12px;
-        margin-bottom: 12px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -138,7 +114,7 @@ if "cust_first_login_setup" not in st.session_state:
 st.image("cafetarnan.jpg", width=120)
 st.subheader("Your Loyalty Stamp Card")
 
-# --- DATABASE / AUTH FALLBACK FOR TESTING OR GUEST VIEW ---
+# --- CUSTOMER LOGIN SCREEN ---
 if not st.session_state.cust_logged_in:
     st.markdown("### Customer Login")
     with st.form("customer_login"):
@@ -154,7 +130,6 @@ if not st.session_state.cust_logged_in:
                     res = supabase.table("loyalty_cards").select("*").eq("mobile_number", mobile_input.strip()).execute()
                     if res.data:
                         customer_record = res.data[0]
-                        # Verify password if hashed, or allow direct match if initial setup
                         st.session_state.cust_logged_in = True
                         st.session_state.cust_mobile = mobile_input.strip()
                         st.session_state.cust_data = customer_record
@@ -166,7 +141,7 @@ if not st.session_state.cust_logged_in:
                     st.error(f"Login error: {e}")
     st.stop()
 
-# --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
+# --- LOGGED-IN CUSTOMER DASHBOARD ---
 if st.session_state.cust_logged_in:
     data = st.session_state.cust_data
     customer_name = data.get("name", "Valued Customer")
@@ -214,12 +189,7 @@ if st.session_state.cust_logged_in:
                     st.markdown("### ⚪")
                     st.caption(f"Stamp {i+1}")
 
-
-
-
-
-
-# --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
+    # --- TAB 2: MY QR CODE & POS BARCODE (IMAGE WALLET PASS) ---
     with tab_qr:
         st.markdown("### 🎫 Your Digital Boarding Pass")
         st.caption("Save or screenshot this digital pass to your phone for instant counter scanning.")
@@ -233,9 +203,6 @@ if st.session_state.cust_logged_in:
         barcode_bytes = generate_barcode(barcode_payload)
 
         # 2. Compose into a Real Wallet Pass Image using Pillow (PIL)
-        from PIL import Image, ImageOps, ImageDraw, ImageFont
-        
-        # Load code images into PIL
         qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
         barcode_img = Image.open(BytesIO(barcode_bytes)).convert("RGBA")
 
@@ -248,11 +215,11 @@ if st.session_state.cust_logged_in:
         card_box = (20, 20, pass_width - 20, pass_height - 20)
         draw.rounded_rectangle(card_box, radius=32, fill="#307041", outline="#204d2b", width=4)
         
-        # Decorative Header & Footer Divider Lines (Using standard hex colors for Pillow)
+        # Decorative Header & Footer Divider Lines
         draw.line([(60, 140), (pass_width - 60, 140)], fill="#7ab389", width=2)
         draw.line([(60, 640), (pass_width - 60, 640)], fill="#7ab389", width=2)
 
-        # Use default high-contrast system fonts or load basic TrueType if available
+        # Fonts setup
         try:
             font_title = ImageFont.truetype("arial.ttf", 24)
             font_header = ImageFont.truetype("arial.ttf", 36)
@@ -269,14 +236,14 @@ if st.session_state.cust_logged_in:
         draw.rounded_rectangle((pass_width - 180, 65, pass_width - 60, 115), radius=16, fill="#255933")
         draw.text((pass_width - 145, 78), "ACTIVE", fill="#ffffff", font=font_label)
 
-        # Draw Customer Details (Left Column: Name & Mobile)
+        # Draw Customer Details
         draw.text((60, 175), "CARDHOLDER NAME", fill="#a3d9b1", font=font_label)
         draw.text((60, 205), customer_name, fill="#ffffff", font=font_value)
 
         draw.text((60, 280), "MOBILE ID", fill="#a3d9b1", font=font_label)
         draw.text((60, 310), str(customer_mobile), fill="#ffffff", font=font_value)
 
-        # Draw Rewards Details (Right Column: Stamps & Free Cups)
+        # Draw Rewards Details
         draw.text((450, 175), "STAMPS & REWARDS", fill="#a3d9b1", font=font_label)
         draw.text((450, 205), f"☕ {current_stamps} / 9 Stamps", fill="#ffffff", font=font_value)
         draw.text((450, 280), f"🏷️ {discounts} Free Cup(s)", fill="#ffd700", font=font_value)
@@ -284,7 +251,7 @@ if st.session_state.cust_logged_in:
         # Center Section Label
         draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (POS / MOBILE)", fill="#a3d9b1", font=font_label)
 
-        # Resize and paste QR code and Barcode onto the pass image card
+        # Paste QR code and Barcode onto the pass image card
         qr_img = qr_img.resize((240, 240))
         pass_img.paste(qr_img, (80, 680), qr_img)
 
@@ -309,8 +276,6 @@ if st.session_state.cust_logged_in:
         )
 
         st.info("💡 **Tip:** Tap download or screenshot this pass image to save it directly to your phone's photo library or wallet app!")
-
-
 
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
