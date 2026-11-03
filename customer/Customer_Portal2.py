@@ -218,6 +218,7 @@ if st.session_state.cust_logged_in:
 
 
 # --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
+    # --- TAB 2: MY QR CODE & POS BARCODE (WALLET BOARDING PASS) ---
     with tab_qr:
         st.markdown("### 🎫 Your Digital Boarding Pass")
         st.caption("Present this digital wallet pass at the counter for smartphone camera scanning or POS barcode checkout.")
@@ -229,57 +230,12 @@ if st.session_state.cust_logged_in:
         qr_bytes = generate_qr_code(qr_payload)
         barcode_bytes = generate_barcode(barcode_payload)
 
-        # Convert images to base64 so they embed cleanly inside the HTML pass card
+        # Convert images to base64
         qr_b64 = base64.b64encode(qr_bytes).decode('utf-8')
         barcode_b64 = base64.b64encode(barcode_bytes).decode('utf-8')
 
-        # Boarding Pass Card HTML design matching the wallet pass style
-        pass_html = f"""
-        <div style="background: linear-gradient(135deg, #307041 0%, #1a3d24 100%); border-radius: 20px; padding: 24px; color: white; box-shadow: 0 12px 30px rgba(48, 112, 65, 0.3); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin-top: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);">
-            <!-- Pass Header -->
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255, 255, 255, 0.4); padding-bottom: 15px; margin-bottom: 18px;">
-                <div>
-                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.8; color: #a3d9b1;">CAFÉ TÄRNAN</div>
-                    <div style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; margin-top: 2px;">LOYALTY PASS</div>
-                </div>
-                <div style="text-align: right;">
-                    <span style="background: rgba(255, 255, 255, 0.2); padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; letter-spacing: 1px; color: #ffffff;">ACTIVE</span>
-                </div>
-            </div>
-
-            <!-- Pass Body Details -->
-            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
-                <div>
-                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Cardholder Name</div>
-                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">{customer_name}</div>
-                    
-                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1; margin-top: 12px;">Mobile ID</div>
-                    <div style="font-size: 14px; font-family: monospace; color: #ffffff; margin-top: 2px;">{customer_mobile}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Stamps & Rewards</div>
-                    <div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">☕ {current_stamps} / 9</div>
-                    <div style="font-size: 13px; font-weight: 600; color: #ffd700; margin-top: 4px;">🏷️ {discounts} Free Cup(s)</div>
-                </div>
-            </div>
-
-            <!-- Embedded Scannable Codes Section -->
-            <div style="border-top: 1px dashed rgba(255, 255, 255, 0.4); padding-top: 18px; margin-top: 10px; text-align: center;">
-                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; color: #a3d9b1; margin-bottom: 10px;">Scan at Counter (POS / Mobile Camera)</div>
-                <div style="display: flex; justify-content: center; gap: 15px; align-items: center; background: white; padding: 12px; border-radius: 12px;">
-                    <div style="text-align: center;">
-                        <img src="data:image/png;base64,{qr_b64}" width="125" style="display: block; margin: 0 auto;"/>
-                        <span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">QR Code</span>
-                    </div>
-                    <div style="width: 1px; background: #ddd; height: 105px;"></div>
-                    <div style="text-align: center;">
-                        <img src="data:image/png;base64,{barcode_b64}" width="155" style="display: block; margin: 0 auto;"/>
-                        <span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">POS Barcode</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """
+        # Single-line HTML string to prevent markdown code-block escaping
+        pass_html = f'<div style="background: linear-gradient(135deg, #307041 0%, #1a3d24 100%); border-radius: 20px; padding: 24px; color: white; box-shadow: 0 12px 30px rgba(48, 112, 65, 0.3); font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif; margin-top: 15px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.2);"><div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed rgba(255, 255, 255, 0.4); padding-bottom: 15px; margin-bottom: 18px;"><div><div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.8; color: #a3d9b1;">CAFÉ TÄRNAN</div><div style="font-size: 18px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; margin-top: 2px;">LOYALTY PASS</div></div><div style="text-align: right;"><span style="background: rgba(255, 255, 255, 0.2); padding: 5px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; letter-spacing: 1px; color: #ffffff;">ACTIVE</span></div></div><div style="display: flex; justify-content: space-between; margin-bottom: 20px;"><div><div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Cardholder Name</div><div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">{customer_name}</div><div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1; margin-top: 12px;">Mobile ID</div><div style="font-size: 14px; font-family: monospace; color: #ffffff; margin-top: 2px;">{customer_mobile}</div></div><div style="text-align: right;"><div style="font-size: 10px; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; color: #a3d9b1;">Stamps & Rewards</div><div style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 2px;">☕ {current_stamps} / 9</div><div style="font-size: 13px; font-weight: 600; color: #ffd700; margin-top: 4px;">🏷️ {discounts} Free Cup(s)</div></div></div><div style="border-top: 1px dashed rgba(255, 255, 255, 0.4); padding-top: 18px; margin-top: 10px; text-align: center;"><div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; color: #a3d9b1; margin-bottom: 10px;">Scan at Counter (POS / Mobile Camera)</div><div style="display: flex; justify-content: center; gap: 15px; align-items: center; background: white; padding: 12px; border-radius: 12px;"><div style="text-align: center;"><img src="data:image/png;base64,{qr_b64}" width="125" style="display: block; margin: 0 auto;"/><span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">QR Code</span></div><div style="width: 1px; background: #ddd; height: 105px;"></div><div style="text-align: center;"><img src="data:image/png;base64,{barcode_b64}" width="155" style="display: block; margin: 0 auto;"/><span style="font-size: 9px; color: #307041; font-weight: bold; margin-top: 4px; display: block;">POS Barcode</span></div></div></div></div>'
         
         st.markdown(pass_html, unsafe_allow_html=True)
         st.info("💡 **Tip:** Take a screenshot of this boarding pass and save it directly to your phone's photo library or wallet app for instant scanning!")
