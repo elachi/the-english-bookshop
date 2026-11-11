@@ -10,6 +10,11 @@ import base64
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+import base64
+# For Apple Wallet (.pkpass generation)
+from applepassgenerator import ApplePass, Certificate
+# For Google Wallet link generation
+from GoogleWalletPassGenerator import GoogleWalletPassGenerator
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
