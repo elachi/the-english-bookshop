@@ -184,8 +184,7 @@ if st.session_state.cust_logged_in:
             st.markdown(locked_disc_html, unsafe_allow_html=True)
 
     # --- TAB 2: MY QR CODE ---
-    # --- TAB 2: NATIVE WALLET PASSES (Apple Wallet & Google Wallet) ---
-    with tab_wallet:
+    with tab_qr:
         st.markdown("### 🎫 Smartphone Wallet Passes")
         st.caption("Add your loyalty pass directly to Apple Wallet or Google Wallet.")
 
@@ -220,7 +219,7 @@ if st.session_state.cust_logged_in:
                 st.info("Google Service Account JSON required to enable instant 'Save to Google Wallet' links.")
 
 
-                
+
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
         st.markdown("### 🛠️ Edit Your Profile")
