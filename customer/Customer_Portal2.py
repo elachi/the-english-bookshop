@@ -184,17 +184,43 @@ if st.session_state.cust_logged_in:
             st.markdown(locked_disc_html, unsafe_allow_html=True)
 
     # --- TAB 2: MY QR CODE ---
-    with tab_qr:
-        st.markdown("### 📱 Member QR Code")
-        st.markdown("Show this QR code at Cafe Tärnan counter to scan and update your stamps:")
-        
-        # Center the QR code nicely
-        col_q1, col_q2, col_q3 = st.columns([1, 2, 1])
-        with col_q2:
-            qr_bytes = generate_qr_code(customer_mobile)
-            st.image(qr_bytes, use_container_width=True)
-            st.markdown(f"<div style='text-align: center; font-weight: 600; margin-top: 8px;'>ID: {customer_mobile}</div>", unsafe_allow_html=True)
+    # --- TAB 2: NATIVE WALLET PASSES (Apple Wallet & Google Wallet) ---
+    with tab_wallet:
+        st.markdown("### 🎫 Smartphone Wallet Passes")
+        st.caption("Add your loyalty pass directly to Apple Wallet or Google Wallet.")
 
+        col_apple, col_google = st.columns(2)
+
+        # --- CALLING THE APPLE WALLET FUNCTION ---
+        with col_apple:
+            st.markdown("#### 🍏 Apple Wallet")
+            apple_bytes = generate_apple_pkpass(customer_name, customer_mobile, current_stamps)
+            if apple_bytes:
+                st.download_button(
+                    label="Download .pkpass",
+                    data=apple_bytes,
+                    file_name=f"cafetarnan_{customer_mobile}.pkpass",
+                    mime="application/vnd.apple.pkpass",
+                    use_container_width=True
+                )
+            else:
+                st.info("Apple Developer certificates required to generate live .pkpass files.")
+
+        # --- CALLING THE GOOGLE WALLET FUNCTION ---
+        with col_google:
+            st.markdown("#### 💳 Google Wallet")
+            google_url = generate_google_wallet_link(customer_name, customer_mobile, current_stamps)
+            if google_url:
+                st.markdown(f"""
+                    <a href="{google_url}" target="_blank">
+                        <img src="https://developers.google.com/pay/wallet/images/wallet-button.png" height="45px" alt="Save to Google Wallet">
+                    </a>
+                """, unsafe_allow_html=True)
+            else:
+                st.info("Google Service Account JSON required to enable instant 'Save to Google Wallet' links.")
+
+
+                
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
         st.markdown("### 🛠️ Edit Your Profile")
