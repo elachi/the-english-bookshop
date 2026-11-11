@@ -6,15 +6,13 @@ from io import BytesIO
 from datetime import datetime
 from supabase import create_client
 import os
-import base64
+import jwt
+import time
+from google.oauth2 import service_account
+from py_pkpass import Pass, Barcode, BarcodeFormat
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-import base64
-# For Apple Wallet (.pkpass generation)
-from applepassgenerator import ApplePass, Certificate
-# For Google Wallet link generation
-from GoogleWalletPassGenerator import GoogleWalletPassGenerator
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
@@ -60,34 +58,94 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- HELPER FUNCTIONS (Framework-Agnostic) ---
+# --- HELPER FUNCTIONS ---
 def generate_qr_code(url_string: str) -> bytes:
-    """Generates a QR code image encoding a URL (for mobile cameras)."""
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=2,
-    )
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=10, border=2)
     qr.add_data(url_string)
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
-    
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
 def generate_barcode(text_string: str) -> bytes:
-    """Generates a Code128 Barcode image encoding raw mobile ID (for POS hardware scanners)."""
     rv = BytesIO()
     Code128 = barcode.get_class('code128')
     clean_text = str(text_string).strip()
     barcode_obj = Code128(clean_text, writer=ImageWriter())
-    
     options = {'write_text': True, 'font_size': 9, 'text_distance': 4, 'dpi': 200, 'quiet_zone': 2}
     barcode_obj.write(rv, options=options)
     rv.seek(0)
     return rv.getvalue()
+
+def generate_apple_pkpass(customer_name, customer_mobile, current_stamps):
+    """Generates a signed Apple Wallet .pkpass byte stream using py-pkpass."""
+    try:
+        passfile = Pass(
+            passTypeIdentifier="pass.com.cafetarnan.loyalty",
+            teamIdentifier="YOUR_APPLE_TEAM_ID",
+            organizationName="Café Tärnan",
+            description="Café Tärnan Loyalty Pass"
+        )
+        passfile.serial_number = str(customer_mobile)
+        passfile.backgroundColor = "rgb(48, 112, 65)"
+        passfile.foregroundColor = "rgb(255, 255, 255)"
+        
+        passfile.barcode = Barcode(
+            message=str(customer_mobile),
+            format=BarcodeFormat.CODE128,
+            altText=str(customer_mobile)
+        )
+        
+        passfile.addPrimaryField('customer_name', customer_name, 'CARDHOLDER')
+        passfile.addSecondaryField('stamps', f"{current_stamps} / 9", 'STAMPS')
+        
+        # Uncomment below once certificate files are added to your directory:
+        # pass_bytes = passfile.create('certificate.pem', 'private.key', 'wwdr.pem')
+        # return pass_bytes
+        return None
+    except Exception as e:
+        return None
+
+def generate_google_wallet_link(customer_name, customer_mobile, current_stamps):
+    """Generates a secure 'Save to Google Wallet' URL via JWT."""
+    try:
+        issuer_id = "YOUR_GOOGLE_ISSUER_ID"
+        key_file_path = "service_account.json"
+        
+        if not os.path.exists(key_file_path):
+            return None
+            
+        credentials = service_account.Credentials.from_service_account_file(key_file_path)
+        object_id = f"{issuer_id}.cust_{customer_mobile}"
+        
+        new_object = {
+            "id": object_id,
+            "classId": f"{issuer_id}.cafetarnan_loyalty_class",
+            "state": "ACTIVE",
+            "textModulesData": [
+                {"header": "CARDHOLDER", "body": customer_name},
+                {"header": "STAMPS", "body": f"{current_stamps} / 9"}
+            ],
+            "barcode": {
+                "type": "CODE_128",
+                "value": str(customer_mobile),
+                "alternateText": str(customer_mobile)
+            }
+        }
+        
+        claims = {
+            "iss": credentials.service_account_email,
+            "aud": "google",
+            "typ": "savetowallet",
+            "iat": int(time.time()),
+            "payload": {"loyaltyObjects": [new_object]}
+        }
+        
+        token = jwt.encode(claims, credentials.signer_secret_string or key_file_path, algorithm="RS256")
+        return f"https://pay.google.com/gp/v/save/{token}"
+    except Exception as e:
+        return None
 
 # Supabase Connection Setup
 try:
@@ -113,8 +171,6 @@ if "cust_mobile" not in st.session_state:
     st.session_state.cust_mobile = ""
 if "cust_data" not in st.session_state:
     st.session_state.cust_data = None
-if "cust_first_login_setup" not in st.session_state:
-    st.session_state.cust_first_login_setup = False
 
 st.image("cafetarnan.jpg", width=120)
 st.subheader("Your Loyalty Stamp Card")
@@ -157,8 +213,8 @@ if st.session_state.cust_logged_in:
 
     st.markdown(f"### Welcome back, **{customer_name}**!")
     
-    # Three Tabs: Digital Card, My QR Code, Profile Editor
-    tab_stamps, tab_qr, tab_profile = st.tabs(["📖 Digital Card", "📱 My Wallet Pass", "⚙️ Profile Editor"])
+    # Three Tabs: Digital Card, My Wallet Pass, Profile Editor
+    tab_stamps, tab_wallet, tab_profile = st.tabs(["📖 Digital Card", "📱 Native Wallet Passes", "⚙️ Profile Editor"])
 
     # --- TAB 1: DIGITAL CARD & REWARDS ---
     with tab_stamps:
@@ -192,67 +248,103 @@ if st.session_state.cust_logged_in:
                     st.markdown("### ⚪")
                     st.caption(f"Stamp {i+1}")
 
-    # --- TAB 2: MY WALLET PASS (Apple, Google & Image Pass) ---
-with tab_qr:
-    st.markdown("### 🎫 Native Digital Wallet Passes")
-    st.caption("Add your Café Tärnan loyalty card directly to your native smartphone wallets or download the image pass.")
+    # --- TAB 2: NATIVE WALLET PASSES (Apple Wallet & Google Wallet) ---
+    with tab_wallet:
+        st.markdown("### 🎫 Smartphone Wallet Passes")
+        st.caption("Add your loyalty pass directly to Apple Wallet or Google Wallet.")
 
-    # 1. Apple Wallet (.pkpass) Generator Setup
-    def generate_apple_pkpass(name, mobile, stamps):
-        try:
-            # Note: Requires actual certificates from your Apple Developer Account (.p12 / .pem)
-            # pass_card = ApplePass(
-            #     pass_type_identifier="pass.com.cafetarnan.loyalty",
-            #     team_identifier="YOUR_APPLE_TEAM_ID",
-            #     organization_name="Café Tärnan"
-            # )
-            # pass_card.serial_number = mobile
-            # pass_card.add_primary_field('customer_name', name, 'CARDHOLDER')
-            # pass_card.add_secondary_field('stamps', f"{stamps} / 9", 'STAMPS')
-            # pass_bytes = pass_card.create(Certificate("certificate.pem", "private.key", "passphrase"))
-            # return pass_bytes
-            return None
-        except Exception as e:
-            return None
+        col_apple, col_google = st.columns(2)
 
-    # 2. Google Wallet Save URL Generator Setup
-    def generate_google_wallet_link(name, mobile, stamps):
-        try:
-            # Google Wallet API requires a Service Account JSON key configured in Streamlit secrets
-            # generator = GoogleWalletPassGenerator(issuer_id="YOUR_GOOGLE_ISSUER_ID", credentials_path="path/to/service_account.json")
-            # pass_url = generator.create_loyalty_pass(...)
-            # return pass_url
-            return "https://pay.google.com/gp/v/save/YOUR_JWT_TOKEN_HERE"
-        except Exception as e:
-            return None
-
-    col_apple, col_google = st.columns(2)
-
-    with col_apple:
-        st.markdown("#### 🍏 Apple Wallet")
-        if st.button("Add to Apple Wallet", use_container_width=True):
+        with col_apple:
+            st.markdown("#### 🍏 Apple Wallet")
             apple_bytes = generate_apple_pkpass(customer_name, customer_mobile, current_stamps)
             if apple_bytes:
                 st.download_button(
-                    label="Download .pkpass file",
+                    label="Download .pkpass",
                     data=apple_bytes,
                     file_name=f"cafetarnan_{customer_mobile}.pkpass",
-                    mime="application/vnd.apple.pkpass"
+                    mime="application/vnd.apple.pkpass",
+                    use_container_width=True
                 )
             else:
-                st.warning("Apple Developer Pass certificates (.pem/.key) required to sign .pkpass files. Use the image pass below as a zero-setup alternative!")
+                st.info("Apple Developer certificates (.pem/.key) are required to generate live .pkpass files.")
 
-    with col_google:
-        st.markdown("#### 💳 Google Wallet")
-        google_link = generate_google_wallet_link(customer_name, customer_mobile, current_stamps)
-        if google_link:
-            st.markdown(f"""
-                <a href="{google_link}" target="_blank">
-                    <img src="https://developers.google.com/pay/wallet/images/wallet-button.png" height="45px" alt="Save to Google Wallet">
-                </a>
-            """, unsafe_allow_html=True)
-        else:
-            st.info("Configure Google Wallet API credentials to enable instant 'Save to Google' web buttons.")
+        with col_google:
+            st.markdown("#### 💳 Google Wallet")
+            google_url = generate_google_wallet_link(customer_name, customer_mobile, current_stamps)
+            if google_url:
+                st.markdown(f"""
+                    <a href="{google_url}" target="_blank">
+                        <img src="https://developers.google.com/pay/wallet/images/wallet-button.png" height="45px" alt="Save to Google Wallet">
+                    </a>
+                """, unsafe_allow_html=True)
+            else:
+                st.info("Google Cloud Service Account JSON required to enable instant 'Save to Google Wallet' links.")
+
+        st.markdown("---")
+        st.markdown("### 📷 Or Download Image Pass (Universal Backup)")
+        
+        # Fallback Image Pass Generation
+        app_base_url = "https://your-cafe-tarnan-app.streamlit.app"
+        qr_bytes = generate_qr_code(f"{app_base_url}/?search={customer_mobile}")
+        barcode_bytes = generate_barcode(customer_mobile)
+
+        qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+        barcode_img = Image.open(BytesIO(barcode_bytes)).convert("RGBA")
+
+        pass_width, pass_height = 800, 1050
+        pass_img = Image.new("RGBA", (pass_width, pass_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(pass_img)
+
+        draw.rounded_rectangle((20, 20, pass_width - 20, pass_height - 20), radius=32, fill="#307041", outline="#204d2b", width=4)
+        draw.line([(60, 140), (pass_width - 60, 140)], fill="#7ab389", width=2)
+        draw.line([(60, 640), (pass_width - 60, 640)], fill="#7ab389", width=2)
+
+        try:
+            font_title = ImageFont.truetype("arial.ttf", 24)
+            font_header = ImageFont.truetype("arial.ttf", 36)
+            font_label = ImageFont.truetype("arial.ttf", 18)
+            font_value = ImageFont.truetype("arial.ttf", 28)
+        except IOError:
+            font_title = font_header = font_label = font_value = ImageFont.load_default()
+
+        draw.text((60, 55), "CAFÉ TÄRNAN", fill="#a3d9b1", font=font_title)
+        draw.text((60, 85), "LOYALTY PASS", fill="#ffffff", font=font_header)
+        
+        draw.rounded_rectangle((pass_width - 180, 65, pass_width - 60, 115), radius=16, fill="#255933")
+        draw.text((pass_width - 145, 78), "ACTIVE", fill="#ffffff", font=font_label)
+
+        draw.text((60, 175), "CARDHOLDER NAME", fill="#a3d9b1", font=font_label)
+        draw.text((60, 205), customer_name, fill="#ffffff", font=font_value)
+
+        draw.text((60, 280), "MOBILE ID", fill="#a3d9b1", font=font_label)
+        draw.text((60, 310), str(customer_mobile), fill="#ffffff", font=font_value)
+
+        draw.text((450, 175), "STAMPS & REWARDS", fill="#a3d9b1", font=font_label)
+        draw.text((450, 205), f"☕ {current_stamps} / 9 Stamps", fill="#ffffff", font=font_value)
+        draw.text((450, 280), f"🏷️ {discounts} Free Cup(s)", fill="#ffd700", font=font_value)
+
+        draw.text((pass_width // 2 - 190, 580), "SCAN AT COUNTER (QR & BARCODE)", fill="#a3d9b1", font=font_label)
+
+        qr_img = qr_img.resize((230, 230))
+        pass_img.paste(qr_img, (75, 685), qr_img)
+
+        barcode_img = barcode_img.resize((340, 230))
+        pass_img.paste(barcode_img, (370, 685), barcode_img)
+
+        pass_buffer = BytesIO()
+        pass_img.convert("RGB").save(pass_buffer, format="PNG")
+        pass_bytes = pass_buffer.getvalue()
+
+        st.image(pass_bytes, use_container_width=True)
+        st.download_button(
+            label="📥 Download Pass Image",
+            data=pass_bytes,
+            file_name=f"cafetarnan_pass_{customer_mobile}.png",
+            mime="image/png",
+            use_container_width=True
+        )
+
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
         st.markdown("### ⚙️ Update Your Profile")

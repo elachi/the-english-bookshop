@@ -8,3 +8,6 @@ python-barcode
 applepassgenerator
 GoogleWalletPassGenerator
 py-pkpass
+pyjwt
+google-auth
+cryptography
