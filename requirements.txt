@@ -6,3 +6,6 @@ qrcode[pil]
 Pillow
 python-barcode
 py-pkpass
+pyjwt
+google-auth
+cryptography
