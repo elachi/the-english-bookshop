@@ -5,6 +5,3 @@ pandas
 qrcode[pil]
 Pillow
 python-barcode
-applepassgenerator
-GoogleWalletPassGenerator
-py-pkpass
