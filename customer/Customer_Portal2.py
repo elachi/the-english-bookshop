@@ -1,15 +1,16 @@
+
 import streamlit as st
+import qrcode
+from io import BytesIO
 from datetime import datetime
 from supabase import create_client
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 
-
-
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE
 st.set_page_config(
-    page_title="Cafe Loyalty Program", 
+    page_title="Café Tärnan Loyalty Program", 
     page_icon="☕", 
     layout="centered"
 )
@@ -17,41 +18,67 @@ st.set_page_config(
 # 2. INJECT CUSTOM CSS TO HIDE THE MENUS & FOOTER
 st.markdown("""
     <style>
-        /* Hides the top-right hamburger menu and Deploy button */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
-        
-        /* Hides the default "Made with Streamlit" footer */
         footer {visibility: hidden;}
-        
-        /* Optional: Shifts the main content up slightly so there isn't a blank gap at the top */
         .block-container {
             padding-top: 2rem;
+        }
+        h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+            color: #307041 !important;
         }
     </style>
 """, unsafe_allow_html=True)
 
 
 
+st.set_page_config(page_title="Café Tärnan Loyalty Card - V2", page_icon="☕", layout="centered")
 
-st.set_page_config(page_title="My Bookstore Loyalty Card", page_icon="📚", layout="centered")
-
-# --- MOBILE STYLING & FONT COLOR ---
+# --- MOBILE STYLING & DIGITAL CARD THEME ---
 st.markdown("""
 <style>
-    /* Apply forest green color across all text elements */
+    /* Apply forest green color across text elements */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #307041 !important;
     }
 
     /* Enlarge tab text */
     button[data-baseweb="tab"] div p {
-        font-size: 1.15rem !important;
+        font-size: 1.05rem !important;
         font-weight: 600 !important;
         color: #307041 !important;
     }
+
+    /* Modern Loyalty Card Styling */
+    .loyalty-card {
+        background: linear-gradient(135deg, #307041 0%, #204d2b 100%);
+        padding: 20px;
+        border-radius: 16px;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 12px;
+    }
+    .loyalty-card * {
+        color: white !important;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# Helper function to generate a dynamic QR code image from a mobile number/ID
+def generate_qr_code(data_string):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(data_string)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return buffered.getvalue()
 
 # Supabase Connection Setup
 try:
@@ -80,10 +107,10 @@ if "cust_data" not in st.session_state:
 if "cust_first_login_setup" not in st.session_state:
     st.session_state.cust_first_login_setup = False
 
-st.image("Logo_EnglishBookshop_logo.png", width=120)
-st.subheader("You loyalty stamp card")
+st.image("cafetarnan.jpg", width=120)
+st.subheader("Your loyalty stamp Card")
 
-# --- 1. LOGGED-IN CUSTOMER DASHBOARD (TWO TABS) ---
+# --- 1. LOGGED-IN CUSTOMER DASHBOARD ---
 if st.session_state.cust_logged_in:
     data = st.session_state.cust_data
     customer_name = data.get("name", "Valued Customer")
@@ -94,43 +121,81 @@ if st.session_state.cust_logged_in:
 
     st.markdown(f"### Welcome back, **{customer_name}**!")
     
-    tab_stamps, tab_profile = st.tabs(["📖 Stamps & Discounts", "⚙️ Profile Editor"])
+    # Three Tabs: Digital Card, QR Code, Profile Editor
+    tab_stamps, tab_qr, tab_profile = st.tabs(["📖 Digital Card", "📱 My QR Code", "⚙️ Profile Editor"])
 
-    # --- TAB 1: STAMPS & DISCOUNTS (Using horizontal containers) ---
+    # --- TAB 1: DIGITAL CARD & REWARDS ---
     with tab_stamps:
-        st.markdown("### 🏷️ Earned Discounts")
+        # Calculate remaining stamps until next discount (assuming target is 9)
+        stamps_left = max(0, 9 - (current_stamps % 9))
+        if stamps_left == 0 and current_stamps > 0:
+            stamps_left = 9
+
+        # --- HTML COMPONENTS FOR REWARDS & STAMPS ---
         
-        # Horizontal container for the two discounts (side-by-side, no wrap)
-        with st.container(horizontal=True, wrap=False):
-            for g in range(2):
-                with st.container():
-                    if g < discounts:
-                        exp_str = discount_expiries[g][:10] if g < len(discount_expiries) else "N/A"
-                        st.image("discount.png", width=36)
-                        st.caption(f"Discount #{g+1}\nExp: {exp_str}")
-                    else:
-                        st.image("discountE.png", width=36)
-                        st.caption(f"Discount #{g+1}\nLocked")
+        # 1. Discount HTML (Ready/Unlocked)
+        has_discount = discounts > 0
+        disc_card_html = f"""
+        <div style="background: #f2f8f3; border: 1px solid #307041; border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 24px; line-height: 1.1;">𑣲☕︎</div>
+            <div style="font-size: 12px; color: #307041; margin-top: 2px; font-weight: 700;">
+                1x Free Coffee Cup Unlocked! 🎉
+            </div>
+            <div style="font-size: 10px; color: #307041; opacity: 0.8; margin-top: 2px;">
+                {f"Expires on: {discount_expiries[0][:10]}" if discount_expiries else "Ready to use at counter"}
+            </div>
+        </div>
+        """
 
-        st.divider()
+        # 2. Stamps Card HTML
+        stamps_card_html = f"""
+        <div class="loyalty-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 13px; font-weight: 700; letter-spacing: 1px;">Café Tärnan</span>
+            </div>
+            <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Coffee Purchases</div>
+            <div style="font-size: 34px; font-weight: 800; margin: 2px 0;">{current_stamps} / 9 <span style="font-size: 18px; font-weight: 400;">Coffee ☕</span></div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">Sharpen your focus with a good cup of coffee and unlock your free coffee cup soon!</div>
+        </div>
+        """
+    
 
-        # Book Purchase Progress (3 rows of 3 stamps using horizontal containers)
-        st.markdown(f"### 📖 Book Purchase Progress ({current_stamps} / 9)")
-        book_emojis = ["📕", "📒", "📘", "📔", "📗", "📓", "📙", "📖", "📚"]
+        # 3. Discount HTML (Locked / Underneath)
+        locked_disc_html = f"""
+        <div style="background: #fafafa; border: 1px dashed #d5ddd7; border-radius: 12px; padding: 12px; text-align: center; margin-top: 4px;">
+            <div style="font-size: 20px; line-height: 1.1;">🔒</div>
+            <div style="font-size: 12px; color: #78947c; margin-top: 2px; font-weight: 700;">
+                Discount Reward Locked
+            </div>
+            <div style="font-size: 11px; color: #78947c; margin-top: 2px;">
+                Only <b>{stamps_left} more coffee{"" if stamps_left == 1 else "s"}</b> ☕ left to unlock your free coffee cup!
+            </div>
+        </div>
+        """
+
+        # --- CONDITIONAL LAYOUT ORDER ---
+        if has_discount:
+            # If discount is ready, place it ON TOP of the stamps card
+            st.markdown(disc_card_html, unsafe_allow_html=True)
+            st.markdown(stamps_card_html, unsafe_allow_html=True)
+        else:
+            # If not earned yet, place stamps card first, then the locked message underneath
+            st.markdown(stamps_card_html, unsafe_allow_html=True)
+            st.markdown(locked_disc_html, unsafe_allow_html=True)
+
+    # --- TAB 2: MY QR CODE ---
+    with tab_qr:
+        st.markdown("### 📱 Member QR Code")
+        st.markdown("Show this QR code at Cafe Tärnan counter to scan and update your stamps:")
         
-        for row in range(3):
-            with st.container(horizontal=True, wrap=False):
-                for col in range(3):
-                    idx = row * 3 + col
-                    with st.container():
-                        if idx < current_stamps:
-                            st.markdown(f"### {book_emojis[idx]}")
-                            st.caption(f"Book {idx+1}")
-                        else:
-                            st.markdown("### ⚪")
-                            st.caption(f"Book {idx+1}")
+        # Center the QR code nicely
+        col_q1, col_q2, col_q3 = st.columns([1, 2, 1])
+        with col_q2:
+            qr_bytes = generate_qr_code(customer_mobile)
+            st.image(qr_bytes, use_container_width=True)
+            st.markdown(f"<div style='text-align: center; font-weight: 600; margin-top: 8px;'>ID: {customer_mobile}</div>", unsafe_allow_html=True)
 
-    # --- TAB 2: PROFILE EDITOR ---
+    # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:
         st.markdown("### 🛠️ Edit Your Profile")
         with st.form("edit_profile_form"):
@@ -188,13 +253,11 @@ if st.session_state.cust_logged_in:
                 except Exception as update_err:
                     st.error(f"Error updating profile: {update_err}")
 
-    st.divider()
-    
     # --- REFRESH & LOG OUT BUTTONS ---
+    st.divider()
     with st.container(horizontal=True, wrap=False):
         if st.button("🔄 Refresh Stamps", use_container_width=True):
             try:
-                # Re-fetch latest data from Supabase without logging out
                 res_refresh = supabase.table("loyalty_cards").select("*").eq("mobile_number", customer_mobile).execute()
                 if res_refresh.data:
                     st.session_state.cust_data = res_refresh.data[0]
@@ -211,7 +274,7 @@ if st.session_state.cust_logged_in:
 
     st.stop()
 
-# --- 2. FIRST-TIME PASSWORD SETUP (Pre-registered by bookstore) ---
+# --- 2. FIRST-TIME PASSWORD SETUP ---
 if st.session_state.cust_first_login_setup:
     st.warning("🔒 First-time login detected. Please set up your secure password.")
     with st.form("setup_pwd_form"):
@@ -246,9 +309,9 @@ if st.session_state.cust_first_login_setup:
 tab_login, tab_register = st.tabs(["🔑 Customer Login", "📝 Register New Card"])
 
 with tab_login:
-    #st.subheader("Enter mobile number and password")
+    st.subheader("View Your Stamp Card")
     with st.form("cust_login_form"):
-        login_mobile = st.text_input("Mobile Number", placeholder="e.g., 555-0200")
+        login_mobile = st.text_input("Mobile Number", placeholder="e.g., 071-234 56 78")
         login_password = st.text_input("Password", type="password", placeholder="Enter your password")
         login_btn = st.form_submit_button("Log In", use_container_width=True)
         
@@ -281,10 +344,11 @@ with tab_login:
                 except Exception as e:
                     st.error(f"Login error: {e}")
 
+
 with tab_register:
     st.subheader("Register a New Loyalty Card")
     with st.form("cust_reg_form", clear_on_submit=True):
-        reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 555-0200")
+        reg_mobile = st.text_input("Mobile Number * (Required)", placeholder="e.g., 071-234 56 78")
         reg_name = st.text_input("Your Name * (Required)", placeholder="e.g., Jane Doe")
         reg_password = st.text_input("Create Password * (Required)", type="password", placeholder="Choose a secure password")
         reg_email = st.text_input("Email (Optional)", placeholder="e.g., jane@hotmail.com")
@@ -322,3 +386,76 @@ with tab_register:
                         st.toast("🎉 Account created successfully! Please log in.", icon="✅")
                 except Exception as e:
                     st.error(f"Error registering account: {e}")
+
+
+
+
+
+# Function for digital wallet
+def generate_apple_pkpass(customer_name, customer_mobile, current_stamps):
+    """Generates a signed Apple Wallet .pkpass byte stream."""
+    try:
+        passfile = Pass(
+            passTypeIdentifier="pass.com.cafetarnan.loyalty",
+            teamIdentifier="YOUR_APPLE_TEAM_ID",
+            organizationName="Café Tärnan",
+            description="Café Tärnan Loyalty Pass"
+        )
+        passfile.serial_number = str(customer_mobile)
+        passfile.backgroundColor = "rgb(48, 112, 65)" # Forest Green
+        passfile.foregroundColor = "rgb(255, 255, 255)"
+        
+        passfile.barcode = Barcode(
+            message=str(customer_mobile),
+            format=BarcodeFormat.CODE128,
+            altText=str(customer_mobile)
+        )
+        
+        passfile.addPrimaryField('customer_name', customer_name, 'CARDHOLDER')
+        passfile.addSecondaryField('stamps', f"{current_stamps} / 9", 'STAMPS')
+        
+        # Requires Apple certificates (.pem files) in your workspace:
+        # return passfile.create('certificate.pem', 'private.key', 'wwdr.pem')
+        return None
+    except Exception as e:
+        return None
+
+def generate_google_wallet_link(customer_name, customer_mobile, current_stamps):
+    """Generates a secure 'Save to Google Wallet' URL via JWT."""
+    try:
+        issuer_id = "YOUR_GOOGLE_ISSUER_ID"
+        key_file_path = "service_account.json"
+        
+        if not os.path.exists(key_file_path):
+            return None
+            
+        credentials = service_account.Credentials.from_service_account_file(key_file_path)
+        object_id = f"{issuer_id}.cust_{customer_mobile}"
+        
+        new_object = {
+            "id": object_id,
+            "classId": f"{issuer_id}.cafetarnan_loyalty_class",
+            "state": "ACTIVE",
+            "textModulesData": [
+                {"header": "CARDHOLDER", "body": customer_name},
+                {"header": "STAMPS", "body": f"{current_stamps} / 9"}
+            ],
+            "barcode": {
+                "type": "CODE_128",
+                "value": str(customer_mobile),
+                "alternateText": str(customer_mobile)
+            }
+        }
+        
+        claims = {
+            "iss": credentials.service_account_email,
+            "aud": "google",
+            "typ": "savetowallet",
+            "iat": int(time.time()),
+            "payload": {"loyaltyObjects": [new_object]}
+        }
+        
+        token = jwt.encode(claims, credentials.signer_secret_string or key_file_path, algorithm="RS256")
+        return f"https://pay.google.com/gp/v/save/{token}"
+    except Exception as e:
+        return None
