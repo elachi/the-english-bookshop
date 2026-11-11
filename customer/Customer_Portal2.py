@@ -7,9 +7,15 @@ import os
 import jwt
 import time
 from google.oauth2 import service_account
-from py_pkpass import Pass, Barcode, BarcodeFormat
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+
+# Safe import for py_pkpass so the app never crashes with a ModuleNotFoundError
+try:
+    from py_pkpass import Pass, Barcode, BarcodeFormat
+    APPLE_PASS_AVAILABLE = True
+except ImportError:
+    APPLE_PASS_AVAILABLE = False
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE (Called only once)
 st.set_page_config(
@@ -68,7 +74,9 @@ def generate_qr_code(data_string):
     return buffered.getvalue()
 
 def generate_apple_pkpass(customer_name, customer_mobile, current_stamps):
-    """Generates a signed Apple Wallet .pkpass byte stream."""
+    """Generates a signed Apple Wallet .pkpass byte stream safely."""
+    if not APPLE_PASS_AVAILABLE:
+        return None
     try:
         passfile = Pass(
             passTypeIdentifier="pass.com.cafetarnan.loyalty",
@@ -248,17 +256,20 @@ if st.session_state.cust_logged_in:
 
         with col_apple:
             st.markdown("#### 🍏 Apple Wallet")
-            apple_bytes = generate_apple_pkpass(customer_name, customer_mobile, current_stamps)
-            if apple_bytes:
-                st.download_button(
-                    label="Download .pkpass",
-                    data=apple_bytes,
-                    file_name=f"cafetarnan_{customer_mobile}.pkpass",
-                    mime="application/vnd.apple.pkpass",
-                    use_container_width=True
-                )
+            if not APPLE_PASS_AVAILABLE:
+                st.warning("`py-pkpass` package is installing or missing from requirements.txt.")
             else:
-                st.info("Apple Developer certificates required to generate live .pkpass files.")
+                apple_bytes = generate_apple_pkpass(customer_name, customer_mobile, current_stamps)
+                if apple_bytes:
+                    st.download_button(
+                        label="Download .pkpass",
+                        data=apple_bytes,
+                        file_name=f"cafetarnan_{customer_mobile}.pkpass",
+                        mime="application/vnd.apple.pkpass",
+                        use_container_width=True
+                    )
+                else:
+                    st.info("Apple Developer certificates required to generate live .pkpass files.")
 
         with col_google:
             st.markdown("#### 💳 Google Wallet")
