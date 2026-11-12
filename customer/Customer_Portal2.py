@@ -1,21 +1,32 @@
+
 import streamlit as st
 import qrcode
 from io import BytesIO
 from datetime import datetime
 from supabase import create_client
 import os
-import jwt
+import json
 import time
+import hashlib
+import zipfile
+import re
+
+import jwt
+from PIL import Image
+
 from google.oauth2 import service_account
+from google.auth.transport.requests import AuthorizedSession
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.serialization import pkcs7
+
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-# Safe import for py_pkpass so the app never crashes with a ModuleNotFoundError
-try:
-    from py_pkpass import Pass, Barcode, BarcodeFormat
-    APPLE_PASS_AVAILABLE = True
-except ImportError:
-    APPLE_PASS_AVAILABLE = False
+
+
+
 
 # 1. MUST BE THE FIRST STREAMLIT COMMAND IN YOUR FILE (Called only once)
 st.set_page_config(
@@ -73,7 +84,7 @@ def generate_qr_code(data_string):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-def generate_apple_pkpass(customer_name, customer_mobile, current_stamps):
+
     """Generates a signed Apple Wallet .pkpass byte stream safely."""
     if not APPLE_PASS_AVAILABLE:
         return None
@@ -103,45 +114,396 @@ def generate_apple_pkpass(customer_name, customer_mobile, current_stamps):
     except Exception as e:
         return None
 
-def generate_google_wallet_link(customer_name, customer_mobile, current_stamps):
-    """Generates a secure 'Save to Google Wallet' URL via JWT."""
-    try:
-        issuer_id = "YOUR_GOOGLE_ISSUER_ID"
-        key_file_path = "service_account.json"
-        
-        if not os.path.exists(key_file_path):
-            return None
-            
-        credentials = service_account.Credentials.from_service_account_file(key_file_path)
-        object_id = f"{issuer_id}.cust_{customer_mobile}"
-        
-        new_object = {
-            "id": object_id,
-            "classId": f"{issuer_id}.cafetarnan_loyalty_class",
-            "state": "ACTIVE",
-            "textModulesData": [
-                {"header": "CARDHOLDER", "body": customer_name},
-                {"header": "STAMPS", "body": f"{current_stamps} / 9"}
+
+
+
+def generate_apple_pkpass(
+    customer_name,
+    customer_mobile,
+    current_stamps,
+    free_cups=0
+):
+    """
+    Generate a signed Apple Wallet loyalty card.
+    Returns .pkpass file bytes.
+
+    Requires Apple certificates in Streamlit secrets.
+    """
+
+    # 1. Read Apple Wallet configuration
+    pass_type_id = st.secrets["APPLE_PASS_TYPE_ID"]
+    team_id = st.secrets["APPLE_TEAM_ID"]
+
+    cert_pem = st.secrets["APPLE_CERT_PEM"].replace("\\n", "\n")
+    key_pem = st.secrets["APPLE_KEY_PEM"].replace("\\n", "\n")
+    wwdr_pem = st.secrets["APPLE_WWDR_PEM"].replace("\\n", "\n")
+
+    # 2. Load certificates and signing key
+    certificate = x509.load_pem_x509_certificate(
+        cert_pem.encode("utf-8")
+    )
+
+    private_key = serialization.load_pem_private_key(
+        key_pem.encode("utf-8"),
+        password=None
+    )
+
+    wwdr_certificate = x509.load_pem_x509_certificate(
+        wwdr_pem.encode("utf-8")
+    )
+
+    # 3. Prepare customer data
+    customer_name = str(customer_name)
+    customer_mobile = str(customer_mobile)
+
+    stamp_count = max(0, int(current_stamps))
+    reward_count = max(0, int(free_cups))
+
+    # 4. Create Apple Wallet pass data
+    pass_data = {
+        "formatVersion": 1,
+        "passTypeIdentifier": pass_type_id,
+        "serialNumber": customer_mobile,
+        "teamIdentifier": team_id,
+        "organizationName": "Café Tärnan",
+        "description": "Café Tärnan Loyalty Card",
+
+        "logoText": "Café Tärnan",
+        "backgroundColor": "rgb(48,112,65)",
+        "foregroundColor": "rgb(255,255,255)",
+        "labelColor": "rgb(255,255,255)",
+
+        "storeCard": {
+            "primaryFields": [
+                {
+                    "key": "stamps",
+                    "label": "COFFEE STAMPS",
+                    "value": f"{stamp_count} / 9"
+                }
             ],
-            "barcode": {
-                "type": "CODE_128",
-                "value": str(customer_mobile),
-                "alternateText": str(customer_mobile)
+            "secondaryFields": [
+                {
+                    "key": "customer",
+                    "label": "CARDHOLDER",
+                    "value": customer_name
+                }
+            ],
+            "auxiliaryFields": [
+                {
+                    "key": "rewards",
+                    "label": "FREE COFFEES",
+                    "value": reward_count
+                }
+            ],
+            "backFields": [
+                {
+                    "key": "instructions",
+                    "label": "How it works",
+                    "value": (
+                        "Collect 9 stamps and earn a free coffee. "
+                        "Present your QR code at Café Tärnan."
+                    )
+                }
+            ]
+        },
+
+        "barcodes": [
+            {
+                "format": "PKBarcodeFormatQR",
+                "message": customer_mobile,
+                "messageEncoding": "iso-8859-1",
+                "altText": customer_mobile
             }
+        ]
+    }
+
+    # 5. Create pass files in memory
+    pass_files = {
+        "pass.json": json.dumps(
+            pass_data,
+            ensure_ascii=False
+        ).encode("utf-8")
+    }
+
+    # Apple Wallet requires icon.png
+    if os.path.exists("cafetarnan.jpg"):
+        source_image = Image.open(
+            "cafetarnan.jpg"
+        ).convert("RGBA")
+    else:
+        source_image = Image.new(
+            "RGBA", (87, 87), (48, 112, 65, 255)
+        )
+
+    for filename, size in [
+        ("icon.png", 29),
+        ("icon@2x.png", 58),
+        ("icon@3x.png", 87)
+    ]:
+        resized = source_image.resize(
+            (size, size),
+            Image.Resampling.LANCZOS
+        )
+
+        image_buffer = BytesIO()
+        resized.save(image_buffer, format="PNG")
+        pass_files[filename] = image_buffer.getvalue()
+
+    # 6. Generate manifest with SHA-1 file hashes
+    manifest = {
+        filename: hashlib.sha1(content).hexdigest()
+        for filename, content in pass_files.items()
+    }
+
+    manifest_bytes = json.dumps(
+        manifest,
+        separators=(",", ":")
+    ).encode("utf-8")
+
+    pass_files["manifest.json"] = manifest_bytes
+
+    # 7. Sign manifest with Apple's certificate
+    signature = (
+        pkcs7.PKCS7SignatureBuilder()
+        .set_data(manifest_bytes)
+        .add_signer(
+            certificate,
+            private_key,
+            hashes.SHA256()
+        )
+        .add_certificate(wwdr_certificate)
+        .sign(
+            serialization.Encoding.DER,
+            [
+                pkcs7.PKCS7Options.DetachedSignature,
+                pkcs7.PKCS7Options.Binary
+            ]
+        )
+    )
+
+    pass_files["signature"] = signature
+
+    # 8. Package as a .pkpass ZIP archive
+    output = BytesIO()
+
+    with zipfile.ZipFile(
+        output,
+        "w",
+        zipfile.ZIP_DEFLATED
+    ) as archive:
+        for filename, content in pass_files.items():
+            archive.writestr(filename, content)
+
+    output.seek(0)
+
+    return output.getvalue()
+
+
+
+
+
+def generate_google_wallet_link(
+    customer_name,
+    customer_mobile,
+    current_stamps,
+    free_cups=0
+):
+    """
+    Create or update a Google Wallet loyalty card.
+
+    Returns a signed Add to Google Wallet URL.
+    """
+
+    # 1. Read Google Wallet configuration
+    issuer_id = str(st.secrets["GOOGLE_ISSUER_ID"])
+    logo_url = st.secrets["GOOGLE_WALLET_LOGO_URL"]
+
+    service_info = json.loads(
+        st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"]
+    )
+
+    # 2. Authenticate
+    credentials = (
+        service_account.Credentials.from_service_account_info(
+            service_info,
+            scopes=[
+                "https://www.googleapis.com/auth/wallet_object.issuer"
+            ]
+        )
+    )
+
+    session = AuthorizedSession(credentials)
+
+    api_base = "https://walletobjects.googleapis.com/walletobjects/v1"
+
+    # 3. Create stable identifiers
+    class_id = f"{issuer_id}.cafetarnan_loyalty"
+
+    # Google Wallet IDs can only use supported characters
+    customer_id = re.sub(
+        r"[^A-Za-z0-9_.-]",
+        "_",
+        str(customer_mobile)
+    )
+
+    object_id = f"{issuer_id}.customer_{customer_id}"
+
+    customer_name = str(customer_name)
+    customer_mobile = str(customer_mobile)
+
+    stamp_count = max(0, int(current_stamps))
+    reward_count = max(0, int(free_cups))
+
+    # 4. Ensure the loyalty class exists
+    class_response = session.get(
+        f"{api_base}/loyaltyClass/{class_id}",
+        timeout=20
+    )
+
+    if class_response.status_code == 404:
+
+        loyalty_class = {
+            "id": class_id,
+            "issuerName": "Café Tärnan",
+            "programName": "Coffee Loyalty",
+            "reviewStatus": "UNDER_REVIEW",
+            "programLogo": {
+                "sourceUri": {
+                    "uri": logo_url
+                },
+                "contentDescription": {
+                    "defaultValue": {
+                        "language": "en-US",
+                        "value": "Café Tärnan logo"
+                    }
+                }
+            },
+            "hexBackgroundColor": "#307041"
         }
-        
-        claims = {
-            "iss": credentials.service_account_email,
-            "aud": "google",
-            "typ": "savetowallet",
-            "iat": int(time.time()),
-            "payload": {"loyaltyObjects": [new_object]}
+
+        create_response = session.post(
+            f"{api_base}/loyaltyClass",
+            json=loyalty_class,
+            timeout=20
+        )
+
+        if create_response.status_code not in (200, 201, 409):
+            raise RuntimeError(
+                "Could not create Google Wallet loyalty class: "
+                f"{create_response.status_code} "
+                f"{create_response.text[:300]}"
+            )
+
+    elif not class_response.ok:
+        raise RuntimeError(
+            "Could not access Google Wallet loyalty class: "
+            f"{class_response.status_code} "
+            f"{class_response.text[:300]}"
+        )
+
+    # 5. Customer-specific loyalty object
+    loyalty_object = {
+        "id": object_id,
+        "classId": class_id,
+        "state": "ACTIVE",
+        "accountId": customer_mobile,
+        "accountName": customer_name,
+
+        "loyaltyPoints": {
+            "label": "Coffee Stamps",
+            "balance": {
+                "int": stamp_count
+            }
+        },
+
+        "textModulesData": [
+            {
+                "id": "stamp_progress",
+                "header": "STAMPS",
+                "body": f"{stamp_count} / 9"
+            },
+            {
+                "id": "free_coffees",
+                "header": "FREE COFFEES",
+                "body": str(reward_count)
+            },
+            {
+                "id": "instructions",
+                "header": "HOW IT WORKS",
+                "body": "Collect 9 stamps and get a free coffee."
+            }
+        ],
+
+        "barcode": {
+            "type": "QR_CODE",
+            "value": customer_mobile,
+            "alternateText": customer_mobile
         }
-        
-        token = jwt.encode(claims, credentials.signer_secret_string or key_file_path, algorithm="RS256")
-        return f"https://pay.google.com/gp/v/save/{token}"
-    except Exception as e:
-        return None
+    }
+
+    # 6. Check whether customer object already exists
+    object_response = session.get(
+        f"{api_base}/loyaltyObject/{object_id}",
+        timeout=20
+    )
+
+    if object_response.status_code == 200:
+
+        # Update the existing card details
+        update_data = {
+            "accountName": customer_name,
+            "loyaltyPoints": loyalty_object["loyaltyPoints"],
+            "textModulesData": loyalty_object["textModulesData"],
+            "barcode": loyalty_object["barcode"]
+        }
+
+        update_response = session.patch(
+            f"{api_base}/loyaltyObject/{object_id}",
+            json=update_data,
+            timeout=20
+        )
+
+        update_response.raise_for_status()
+
+        # Existing object only needs its ID in the JWT
+        wallet_payload = {
+            "loyaltyObjects": [
+                {"id": object_id}
+            ]
+        }
+
+    elif object_response.status_code == 404:
+
+        # Create the object when the customer saves it
+        wallet_payload = {
+            "loyaltyObjects": [loyalty_object]
+        }
+
+    else:
+        object_response.raise_for_status()
+
+    # 7. Sign Add to Google Wallet JWT
+    claims = {
+        "iss": service_info["client_email"],
+        "aud": "google",
+        "typ": "savetowallet",
+        "iat": int(time.time()),
+        "payload": wallet_payload
+    }
+
+    token = jwt.encode(
+        claims,
+        service_info["private_key"],
+        algorithm="RS256"
+    )
+
+    # 8. Return Add to Google Wallet URL
+    return f"https://pay.google.com/gp/v/save/{token}"
+
+
+
+
+
 
 # Supabase Connection Setup
 try:
@@ -247,46 +609,102 @@ if st.session_state.cust_logged_in:
                     st.markdown("### ⚪")
                     st.caption(f"Stamp {i+1}")
 
-    # --- TAB 2: SMARTPHONE WALLET PASSES (Apple & Google) ---
+
+
+    
+    # --- TAB 2: SMARTPHONE WALLET PASSES ---
     with tab_wallet:
-        st.markdown("### 🎫 Native Smartphone Wallet Passes")
-        st.caption("Add your loyalty pass directly to Apple Wallet or Google Wallet.")
+
+        st.markdown("### 📱 Your Café Tärnan Wallet Card")
+
+        st.caption(
+            "Save your loyalty card to your phone. "
+            "Use it at Café Tärnan to collect stamps."
+        )
+
+        # Show current loyalty information
+        st.markdown(f"**Customer:** {customer_name}")
+        st.markdown(f"**Stamps:** {current_stamps} / 9")
+        st.markdown(f"**Free coffees:** {discounts}")
+
+        st.divider()
 
         col_apple, col_google = st.columns(2)
 
+        # --- APPLE WALLET ---
         with col_apple:
+
             st.markdown("#### 🍏 Apple Wallet")
-            if not APPLE_PASS_AVAILABLE:
-                st.warning("`py-pkpass` package is installing or missing from requirements.txt.")
-            else:
-                apple_bytes = generate_apple_pkpass(customer_name, customer_mobile, current_stamps)
-                if apple_bytes:
-                    st.download_button(
-                        label="Download .pkpass",
-                        data=apple_bytes,
-                        file_name=f"cafetarnan_{customer_mobile}.pkpass",
-                        mime="application/vnd.apple.pkpass",
-                        use_container_width=True
-                    )
-                else:
-                    st.info("Apple Developer certificates required to generate live .pkpass files.")
 
+            try:
+                apple_bytes = generate_apple_pkpass(
+                    customer_name,
+                    customer_mobile,
+                    current_stamps,
+                    discounts
+                )
+
+                st.download_button(
+                    label="Add to Apple Wallet",
+                    data=apple_bytes,
+                    file_name="cafetarnan_loyalty.pkpass",
+                    mime="application/vnd.apple.pkpass",
+                    use_container_width=True
+                )
+
+            except Exception as e:
+                st.info(
+                    "Apple Wallet is not yet configured."
+                )
+                # For debugging during development:
+                # st.error(str(e))
+
+        # --- GOOGLE WALLET ---
         with col_google:
-            st.markdown("#### 💳 Google Wallet")
-            google_url = generate_google_wallet_link(customer_name, customer_mobile, current_stamps)
-            if google_url:
-                st.markdown(f"""
-                    <a href="{google_url}" target="_blank">
-                        <img src="https://developers.google.com/pay/wallet/images/wallet-button.png" height="45px" alt="Save to Google Wallet">
-                    </a>
-                """, unsafe_allow_html=True)
-            else:
-                st.info("Google Service Account JSON required to enable instant 'Save to Google Wallet' links.")
 
-        st.markdown("---")
-        st.markdown("### 📱 QR Code Backup")
+            st.markdown("#### 💳 Google Wallet")
+
+            try:
+                google_url = generate_google_wallet_link(
+                    customer_name,
+                    customer_mobile,
+                    current_stamps,
+                    discounts
+                )
+
+                st.link_button(
+                    label="Add to Google Wallet",
+                    url=google_url,
+                    use_container_width=True
+                )
+
+            except Exception as e:
+                st.info(
+                    "Google Wallet is not yet configured."
+                )
+                # For debugging during development:
+                # st.error(str(e))
+
+        st.divider()
+
+        # --- EXISTING QR CODE BACKUP ---
+        st.markdown("### 📱 Customer QR Code")
+
         qr_bytes = generate_qr_code(customer_mobile)
+
         st.image(qr_bytes, width=200)
+
+        st.caption(
+            "Show this code at Café Tärnan "
+            "to collect your stamps."
+        )
+
+    
+
+
+
+
+
 
     # --- TAB 3: PROFILE EDITOR ---
     with tab_profile:

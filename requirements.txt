@@ -9,3 +9,4 @@ py-pkpass
 pyjwt
 google-auth
 cryptography
+requests
